@@ -2,8 +2,14 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import * as THREE from "three";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leva, folder, useControls } from "leva";
 
@@ -15,6 +21,43 @@ export default function Home() {
   const controlsRef = useRef<OrbitControls | null>(null);
   const modelRef = useRef<THREE.Object3D | null>(null);
   const floorRef = useRef<THREE.Mesh | null>(null);
+  const spotRef = useRef<THREE.SpotLight | null>(null);
+  const spotTargetRef = useRef<THREE.Object3D | null>(null);
+
+  // Create a soft radial white falloff texture to project as spotlight map (gobo)
+  function createBlobGradientTexture(size = 1024): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, size, size);
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size * 0.48;
+    // Clip to circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    // Fill bright white to let spotlight color define hue
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, size, size);
+    // Soft alpha edge
+    const radial = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    radial.addColorStop(0.0, "rgba(0,0,0,1)");
+    radial.addColorStop(0.7, "rgba(0,0,0,1)");
+    radial.addColorStop(1.0, "rgba(0,0,0,0)");
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = radial;
+    ctx.fillRect(0, 0, size, size);
+    ctx.restore();
+    ctx.globalCompositeOperation = "source-over";
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }
 
   const {
     camX,
@@ -29,6 +72,17 @@ export default function Home() {
     lockTilt,
     enableZoom,
     enablePan,
+    lightIntensity,
+    lightAngle,
+    lightDistance,
+    lightDecay,
+    lightX,
+    lightY,
+    lightZ,
+    targetX,
+    targetY,
+    targetZ,
+    lightColor,
   } = useControls({
     Camera: folder({
       camX: { value: -3.2, min: -50, max: 50, step: 0.1 },
@@ -47,6 +101,19 @@ export default function Home() {
       houseX: { value: 0, min: -10, max: 10, step: 0.01 },
       houseY: { value: 0.02, min: -10, max: 10, step: 0.01 },
       houseZ: { value: 0, min: -10, max: 10, step: 0.01 },
+    }),
+    Light: folder({
+      lightIntensity: { value: 307, min: 0, max: 500, step: 0.5 },
+      lightAngle: { value: 0.48, min: 0.05, max: Math.PI / 2, step: 0.001 },
+      lightDistance: { value: 61, min: 0, max: 500, step: 1 },
+      lightDecay: { value: 1.19, min: 0.5, max: 2, step: 0.01 },
+      lightX: { value: 1.8, min: -50, max: 50, step: 0.1 },
+      lightY: { value: 3.8, min: 0, max: 50, step: 0.1 },
+      lightZ: { value: 1.8, min: -50, max: 50, step: 0.1 },
+      targetX: { value: 0.0, min: -50, max: 50, step: 0.1 },
+      targetY: { value: 1.0, min: -10, max: 50, step: 0.1 },
+      targetZ: { value: 0.7, min: -50, max: 50, step: 0.1 },
+      lightColor: { value: "#fff59d" },
     }),
   });
 
@@ -70,6 +137,10 @@ export default function Home() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(container.clientWidth, container.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -80,21 +151,30 @@ export default function Home() {
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 0.25);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
     dirLight.position.set(5, 10, 7.5);
+    dirLight.castShadow = false;
     scene.add(dirLight);
 
     const loader = new GLTFLoader();
     loader.load(
       "/house.glb",
-      (gltf) => {
+      (gltf: any) => {
         const modelRoot = gltf.scene || gltf.scenes?.[0];
         if (!modelRoot) return;
         scene.add(modelRoot);
         modelRef.current = modelRoot;
+        // Enable shadows on meshes
+        modelRoot.traverse((obj: THREE.Object3D) => {
+          const mesh = obj as any;
+          if (mesh && mesh.isMesh) {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+          }
+        });
 
         const box = new THREE.Box3().setFromObject(modelRoot);
         const size = new THREE.Vector3();
@@ -155,13 +235,32 @@ export default function Home() {
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = floorY;
+        floor.receiveShadow = true;
         scene.add(floor);
         floorRef.current = floor;
         // Apply initial Leva floor scale
         floor.scale.set(floorSize, 1, floorSize);
+        // Spotlight with projected texture (gobo)
+        const spot = new THREE.SpotLight(new THREE.Color(lightColor), lightIntensity, lightDistance, lightAngle, 1, lightDecay);
+        spot.position.set(lightX, lightY, lightZ);
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(1024, 1024);
+        spot.shadow.bias = -0.003;
+        const gobo = createBlobGradientTexture(1024);
+        gobo.flipY = false;
+        gobo.needsUpdate = true;
+        // Assign map (supported in WebGPU; ignored in WebGL gracefully)
+        (spot as any).map = gobo;
+        const target = new THREE.Object3D();
+        target.position.set(targetX, targetY, targetZ);
+        scene.add(target);
+        spot.target = target;
+        scene.add(spot);
+        spotRef.current = spot;
+        spotTargetRef.current = target;
       },
       undefined,
-      (error) => {
+      (error: any) => {
         // eslint-disable-next-line no-console
         console.error("Failed to load /house.glb", error);
       }
@@ -187,7 +286,7 @@ export default function Home() {
       resizeObserverRef.current = new ResizeObserver(handleResize);
       resizeObserverRef.current.observe(container);
     } else {
-      window.addEventListener("resize", handleResize);
+      (window as any).addEventListener("resize", handleResize);
     }
 
     return () => {
@@ -196,7 +295,7 @@ export default function Home() {
         resizeObserverRef.current.disconnect();
         resizeObserverRef.current = null;
       } else {
-        window.removeEventListener("resize", handleResize);
+        (window as any).removeEventListener("resize", handleResize);
       }
       controls.dispose();
       if (rendererRef.current) {
@@ -264,6 +363,25 @@ export default function Home() {
     model.scale.setScalar(houseScale);
     model.position.set(houseX, houseY, houseZ);
   }, [houseScale, houseX, houseY, houseZ]);
+
+  // React to Leva - spotlight updates
+  useEffect(() => {
+    const spot = spotRef.current;
+    const target = spotTargetRef.current;
+    if (!spot) return;
+    spot.color.set(lightColor as any);
+    spot.intensity = lightIntensity;
+    spot.angle = lightAngle;
+    spot.distance = lightDistance;
+    spot.decay = lightDecay;
+    spot.position.set(lightX, lightY, lightZ);
+    if (target) {
+      target.position.set(targetX, targetY, targetZ);
+      target.updateMatrixWorld();
+      spot.target = target;
+    }
+    spot.updateMatrixWorld();
+  }, [lightColor, lightIntensity, lightAngle, lightDistance, lightDecay, lightX, lightY, lightZ, targetX, targetY, targetZ]);
 
   return (
     <>
