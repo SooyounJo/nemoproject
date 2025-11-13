@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Home from "@/components/home/home";
-import Room from "@/components/room/room";
+import Home from "@/components/desktop/home/home";
+import Room from "@/components/desktop/room/room";
 
 export default function Page() {
   const [active, setActive] = useState<1 | 2 | 3>(1);
