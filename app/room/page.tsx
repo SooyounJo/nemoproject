@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
 
 export default function FixedRoomPage() {
@@ -43,6 +44,9 @@ export default function FixedRoomPage() {
   // Step 0 -> camClose, Step 1 -> camFar, Step 2 -> camAngle, Step 3 -> same as camAngle (fade stage)
   const steps = [camClose, camFar, camAngle, camAngle] as { x: number; y: number; z: number }[];
   const [step, setStep] = useState(0);
+  const socketRef = useRef<any>(null);
+  const [remoteProgress, setRemoteProgress] = useState<number | null>(null);
+  const [remoteOverlay, setRemoteOverlay] = useState<number | null>(null);
   // step 0로 돌아오면 랜딩 최종 구도(camVeryClose)로 복귀
   const stepTarget = step === 0 ? camVeryClose : steps[step];
   // Intro settle animation (once on mount: camVeryCloseUp -> camVeryClose)
@@ -52,6 +56,38 @@ export default function FixedRoomPage() {
     return () => clearTimeout(id);
   }, []);
   const combinedTarget = intro ? camVeryClose : stepTarget;
+  // Socket.IO client for remote control (next / prev / progress / setStep)
+  useEffect(() => {
+    const socket = io({ path: "/api/socketio" });
+    socketRef.current = socket;
+    const onNext = () => setStep((s) => Math.min(steps.length - 1, s + 1));
+    const onPrev = () => setStep((s) => Math.max(0, s - 1));
+    const onSetStep = (v: number) => {
+      const nv = Math.max(0, Math.min(steps.length - 1, Math.floor(v)));
+      setStep(nv);
+    };
+    const onProgress = (v: number) => {
+      if (typeof v === "number") setRemoteProgress(Math.max(0, Math.min(1, v)));
+    };
+    const onOverlay = (v: number) => {
+      if (typeof v === "number") setRemoteOverlay(Math.max(0, Math.min(1, v)));
+    };
+    socket.on("next", onNext);
+    socket.on("prev", onPrev);
+    socket.on("setStep", onSetStep);
+    socket.on("progress", onProgress);
+    socket.on("overlayOpacity", onOverlay);
+    return () => {
+      socket.off("next", onNext);
+      socket.off("prev", onPrev);
+      socket.off("setStep", onSetStep);
+      socket.off("progress", onProgress);
+      socket.off("overlayOpacity", onOverlay);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps.length]);
   useEffect(() => {
     // Apply the same placement through step 0, 1, and 2
     if (step === 0 || step === 1 || step === 2) {
@@ -71,7 +107,11 @@ export default function FixedRoomPage() {
   const lightTarget = lightSteps[step] || undefined;
   // 진행 슬라이더: 랜딩(0)에서는 0.538, 첫 다음(1)에서는 0.0(아침)으로 이동
   // 그 이후 스텝에서는 사용자가 조정한 값을 보존하도록 별도 타깃을 주지 않음
-  const progressTarget = step === 0 ? 0.538 : (step === 1 ? 0.0 : (undefined as any));
+  const defaultProgress: number | any = step === 0 ? 0.538 : (step === 1 ? 0.0 : (undefined as any));
+  const progressTarget = (remoteProgress !== null ? (remoteProgress as any) : defaultProgress);
+  const dynamicProgressLerp = remoteProgress !== null ? 180 : 900;
+  const overlayTarget = (remoteOverlay !== null ? remoteOverlay : (step === 3 ? 0 : 1));
+  const dynamicOverlayLerp = remoteOverlay !== null ? 180 : 1200;
 
   return (
     <>
@@ -96,17 +136,17 @@ export default function FixedRoomPage() {
         overlayVisible={step >= 2}
         overlayPos={{ x: -3.9, y: -1.8, z: -8.0 }}
         overlayScale={5.0}
-        overlayOpacityTarget={step === 3 ? 0 : 1}
-        overlayOpacityLerp={1200}
+        overlayOpacityTarget={overlayTarget}
+        overlayOpacityLerp={dynamicOverlayLerp}
         progressTarget={progressTarget as any}
-        progressLerp={900}
+        progressLerp={dynamicProgressLerp}
         progressTrigger={step}
         initialProgress={0.538}
         disableColorMapping={step === 0}
         initialFov={28}
         hideUI={true}
         showPathSlider={step > 0}
-        showHtmlSliders={true}
+        showHtmlSliders={false}
         staticView={true}
       />
       <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 12, zIndex: 40 }}>
