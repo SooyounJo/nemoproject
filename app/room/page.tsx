@@ -209,6 +209,26 @@ export default function FixedRoomPage() {
           zIndex: 60,
         }}
       />
+      {/* step 3: go to generator */}
+      {step === 3 && (
+        <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70 }}>
+          <a
+            href="/generate"
+            style={{
+              pointerEvents: "auto",
+              padding: "12px 18px",
+              borderRadius: 12,
+              border: "1px solid #23262d",
+              background: "#111318",
+              color: "#e5e7eb",
+              textDecoration: "none",
+              fontSize: 14,
+            }}
+          >
+            생성 페이지로 이동
+          </a>
+        </div>
+      )}
     </>
   );
 }
