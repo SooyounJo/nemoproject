@@ -6,6 +6,7 @@ import LandingVideoCRT from "@/components/desktop/page2/LandingVideoCRT";
 import WindowsScatter from "@/components/desktop/page2/WindowsScatter";
 import WindowsArrangeTransition from "@/components/desktop/page2/WindowsArrangeTransition";
 import WindowsArrangeGrid from "@/components/desktop/page2/WindowsArrangeGrid";
+import WindowsMosaicTransition from "@/components/desktop/page2/WindowsMosaicTransition";
 import CenterPrompt from "@/components/desktop/page2/CenterPrompt";
 import FadeOverlay from "@/components/desktop/page2/FadeOverlay";
 import EdgeNav from "@/components/desktop/page2/EdgeNav";
@@ -18,6 +19,15 @@ export default function Page2() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showWindows, setShowWindows] = useState(false);
   const [stage, setStage] = useState(0); // 0: video, 1: prompt, 2: windows
+  // Clarity animation and camera integration
+  const [clarity, setClarity] = useState(0); // 0 -> blurred, 1 -> clear
+  const clarityRafRef = useRef(null);
+  const [camTargets, setCamTargets] = useState([]);
+  const [camImages, setCamImages] = useState([]);
+  const camVideoRef = useRef(null);
+  const camCanvasRef = useRef(null);
+  const camStreamRef = useRef(null);
+  const camCaptureTimerRef = useRef(null);
   const router = useRouter();
   const autoTimerRef = useRef(null);
   const promptTimerRef = useRef(null);
@@ -26,6 +36,9 @@ export default function Page2() {
   const [arranged, setArranged] = useState(false);
   const [arranging, setArranging] = useState(false);
   const [transitionStart, setTransitionStart] = useState(false);
+  const [mosaic, setMosaic] = useState(false);
+  const [mosaicStart, setMosaicStart] = useState(false);
+  const [mosaicTargets, setMosaicTargets] = useState([]);
   const [survivors, setSurvivors] = useState([]); // indices to keep (9)
   const [targets, setTargets] = useState([]); // target rects for survivors
   // Color mood set (applied as overlay/filter to unify tone)
@@ -62,6 +75,84 @@ export default function Page2() {
     if (promptTimerRef.current) { clearTimeout(promptTimerRef.current); promptTimerRef.current = null; }
     if (questionTimerRef.current) { clearTimeout(questionTimerRef.current); questionTimerRef.current = null; }
   }, []);
+  const stopClarityAnim = useCallback(() => {
+    if (clarityRafRef.current) { cancelAnimationFrame(clarityRafRef.current); clarityRafRef.current = null; }
+  }, []);
+  const startClarityAnim = useCallback(() => {
+    stopClarityAnim();
+    setClarity(0);
+    const startTs = performance.now();
+    const dur = 3200;
+    const step = (ts) => {
+      const t = Math.min(1, (ts - startTs) / dur);
+      // ease-out
+      const eased = 1 - Math.pow(1 - t, 3);
+      setClarity(eased);
+      if (t < 1) {
+        clarityRafRef.current = requestAnimationFrame(step);
+      } else {
+        clarityRafRef.current = null;
+      }
+    };
+    clarityRafRef.current = requestAnimationFrame(step);
+  }, [stopClarityAnim]);
+  const stopCamera = useCallback(() => {
+    try {
+      if (camCaptureTimerRef.current) { clearInterval(camCaptureTimerRef.current); camCaptureTimerRef.current = null; }
+      const s = camStreamRef.current;
+      if (s) {
+        s.getTracks().forEach((tr) => { try { tr.stop(); } catch {} });
+        camStreamRef.current = null;
+      }
+      setCamImages([]);
+    } catch {}
+  }, []);
+  const startCamera = useCallback(async () => {
+    try {
+      // choose 4 smallest windows by area to attach camera
+      const areas = windows.map((w, idx) => ({ idx, area: (w.widthVw || parseFloat(w.width)) * (w.heightVh || parseFloat(w.height)) }));
+      areas.sort((a, b) => a.area - b.area);
+      const picks = areas.slice(0, 4).map((e) => e.idx);
+      setCamTargets(picks);
+      // init stream
+      const stream = await navigator.mediaDevices?.getUserMedia?.({ video: { width: 640, height: 480 }, audio: false });
+      if (!stream) return;
+      camStreamRef.current = stream;
+      if (!camVideoRef.current) {
+        camVideoRef.current = document.createElement("video");
+        camVideoRef.current.setAttribute("playsinline", "");
+        camVideoRef.current.muted = true;
+        camVideoRef.current.autoplay = true;
+        camVideoRef.current.style.display = "none";
+        document.body.appendChild(camVideoRef.current);
+      }
+      camVideoRef.current.srcObject = stream;
+      await camVideoRef.current.play().catch(() => {});
+      if (!camCanvasRef.current) {
+        camCanvasRef.current = document.createElement("canvas");
+        camCanvasRef.current.width = 640;
+        camCanvasRef.current.height = 480;
+      }
+      const ctx = camCanvasRef.current.getContext("2d");
+      camCaptureTimerRef.current = setInterval(() => {
+        try {
+          const vw = camVideoRef.current.videoWidth || 640;
+          const vh = camVideoRef.current.videoHeight || 480;
+          camCanvasRef.current.width = vw;
+          camCanvasRef.current.height = vh;
+          ctx.drawImage(camVideoRef.current, 0, 0, vw, vh);
+          const url = camCanvasRef.current.toDataURL("image/jpeg", 0.72);
+          setCamImages((prev) => {
+            const next = [...prev];
+            if (next.length < 4) next.push(url); else next[(Date.now() >> 12) % 4] = url;
+            return next;
+          });
+        } catch {}
+      }, 900);
+    } catch {
+      // ignore if denied
+    }
+  }, []);
   const goToStage = useCallback((s) => {
     clearTimers();
     setStage(s);
@@ -71,6 +162,9 @@ export default function Page2() {
       setShowWindows(false);
       setShowQuestion(false);
       setArranged(false);
+      setClarity(0);
+      stopClarityAnim();
+      stopCamera();
       const v = vidRef.current;
       if (v) {
         try { v.currentTime = 0; } catch {}
@@ -83,6 +177,9 @@ export default function Page2() {
       setShowPrompt(true);
       setShowQuestion(false);
       setArranged(false);
+      setClarity(0);
+      stopClarityAnim();
+      stopCamera();
       // Hide prompt after 2s
       promptTimerRef.current = setTimeout(() => setShowPrompt(false), 2000);
       // Auto advance to windows after ~2.6s
@@ -92,17 +189,19 @@ export default function Page2() {
       setShowPrompt(false);
       setShowWindows(true);
       setArranged(false);
-      setShowQuestion(false);
-      // After 1s, show center question box
-      questionTimerRef.current = setTimeout(() => setShowQuestion(true), 1000);
+      setShowQuestion(true);
+      startClarityAnim();
+      startCamera();
     }
-  }, [clearTimers]);
+  }, [clearTimers, startClarityAnim, startCamera, stopCamera, stopClarityAnim]);
   const windows = useMemo(() => {
-    // Stable pseudo-random layout for 16 windows, evenly spread across screen
+    // Stable pseudo-random layout for 16 windows, evenly spread with aesthetic aspect ratios
     const rnd = (seed) => {
       let x = Math.sin(seed) * 10000;
       return x - Math.floor(x);
     };
+    const phi = 1.61803398875;
+    const ratioPalette = [1, 4/3, 3/4, 16/9, 9/16, phi, 1/phi];
     const arr = [];
     const count = 16;
     // grid buckets to avoid clustering and to fill top-left as well
@@ -126,26 +225,41 @@ export default function Page2() {
       const r1 = rnd(i + 1);
       const r2 = rnd(i + 2);
       const r3 = rnd(i + 3);
-      // Extreme size variety
+      const targetRatio = ratioPalette[Math.floor(r1 * ratioPalette.length) % ratioPalette.length];
+      // Stronger size variety
       let w, h;
-      if (i % 7 === 0) { // very small
-        w = 6 + Math.floor(r1 * 6);   // 6~12vw
-        h = 10 + Math.floor(r2 * 8);  // 10~18vh
+      if (i % 9 === 0) { // ultra small
+        w = 5 + Math.floor(r1 * 7);    // 5~12vw
+        h = 8 + Math.floor(r2 * 16);   // 8~24vh
+      } else if (i % 7 === 0) { // small & short (avoid overly tall)
+        w = 12 + Math.floor(r1 * 14);  // 12~26vw
+        h = 12 + Math.floor(r2 * 14);  // 12~26vh
       } else if (i % 5 === 0) { // very large
-        w = 38 + Math.floor(r1 * 22); // 38~60vw
-        h = 40 + Math.floor(r2 * 30); // 40~70vh
+        w = 44 + Math.floor(r1 * 22);  // 44~66vw
+        h = 46 + Math.floor(r2 * 32);  // 46~78vh
       } else {
-        // shape variety: wide/tall/mid
+        // shape variety: wide / mid / tall
         const sp = r1;
-        w = 14 + Math.floor(r1 * 28); // 14~42vw
-        h = 20 + Math.floor(r2 * 40); // 20~60vh
-        if (sp < 0.33) { w = 26 + Math.floor(r1 * 26); h = 22 + Math.floor(r2 * 30); }
-        else if (sp > 0.66) { w = 16 + Math.floor(r1 * 22); h = 34 + Math.floor(r2 * 26); }
+        w = 12 + Math.floor(r1 * 34);  // 12~46vw
+        h = 18 + Math.floor(r2 * 46);  // 18~64vh
+        if (sp < 0.33) { w = 24 + Math.floor(r1 * 28); h = 20 + Math.floor(r2 * 30); }       // wide-ish
+        else if (sp > 0.66) { w = 14 + Math.floor(r1 * 22); h = 36 + Math.floor(r2 * 30); }  // tall-ish
+      }
+      // Nudge towards aesthetic aspect ratio (approximate due to vw/vh units)
+      const minH = 8, maxH = 78;
+      const currentRatio = w / Math.max(1, h);
+      const blend = 0.7;
+      const blendedRatio = currentRatio * (1 - blend) + targetRatio * blend;
+      h = Math.max(minH, Math.min(maxH, Math.round((w / Math.max(0.1, blendedRatio)))));
+      // Re-apply small & short cap for the designated bucket
+      if (i % 7 === 0) {
+        h = Math.max(12, Math.min(26, h));
+        w = Math.max(12, Math.min(26, w));
       }
       // choose cell and jitter inside
       const cell = cells[i % cells.length];
-      const jitterX = (r2 - 0.5) * (cellW * 0.35); // +-35% cell jitter
-      const jitterY = (r3 - 0.5) * (cellH * 0.35);
+      const jitterX = (r2 - 0.5) * (cellW * 0.25); // slightly calmer jitter for cleaner composition
+      const jitterY = (r3 - 0.5) * (cellH * 0.25);
       let left = cell.gx * cellW + cellW * 0.1 + jitterX;   // keep margins inside cell
       let top  = cell.gy * cellH + cellH * 0.1 + jitterY;
       // clamp so window stays on screen
@@ -153,12 +267,35 @@ export default function Page2() {
       if (top + h > 100) top = 100 - h - 1;
       if (left < 0) left = 0;
       if (top < 0) top = 0;
-      // motion types
+      // mix vertical placement: avoid "big always bottom, small always top"
+      const areaNow = w * h;
+      if (areaNow > 1800 && top > 55) {
+        // move some large windows into upper band
+        const tBand = 15 + Math.floor(r1 * 30); // 15~45
+        top = Math.min(top, tBand);
+      } else if (areaNow < 400 && top > 55 && r2 > 0.45) {
+        // pull some small windows upward instead of pushing down
+        const tBand = 12 + Math.floor(r3 * 28); // 12~40
+        top = Math.min(top, tBand);
+      }
+      // motion types by size: large => slow y/z or still; small => lively skitter; else => mixed
       const baseTypes = ["winVertical", "winExpand", "winWander", "winSlide", "winOrganic", "winPausey"];
-      // ensure two windows get very wide roaming motion
-      const type = i >= count - 2 ? (i % 2 === 0 ? "winRoamWideA" : "winRoamWideB") : baseTypes[i % baseTypes.length];
-      // tempo and easing variety
-      const durMs = 3800 + Math.floor(r2 * 6400); // 3.8s ~ 10.2s
+      let type;
+      let durMs;
+      if (areaNow > 1800) {
+        type = r1 > 0.2 ? "winDepthFloat" : "winStill";
+        durMs = 5000 + Math.floor(r2 * 5000); // 5s ~ 10s (faster)
+      } else if (areaNow < 400) {
+        type = "winSkitter";
+        durMs = 1600 + Math.floor(r2 * 2000); // 1.6s ~ 3.6s (faster)
+      } else {
+        type = baseTypes[Math.floor(r1 * baseTypes.length) % baseTypes.length];
+        durMs = 2800 + Math.floor(r2 * 4200); // 2.8s ~ 7.0s (faster)
+      }
+      // allow two roamers only if not huge
+      if (i >= count - 2 && areaNow <= 1200) {
+        type = i % 2 === 0 ? "winRoamWideA" : "winRoamWideB";
+      }
       const delayMs = Math.floor(r1 * 4200);
       const timingFns = [
         "ease-in-out",
@@ -183,11 +320,39 @@ export default function Page2() {
         timing,
       });
     }
+    // Assign z-index so large windows are behind, small are in front
+    const byAreaDesc = [...arr].map((w, idx) => ({ idx, area: w.widthVw * w.heightVh }))
+      .sort((a, b) => b.area - a.area);
+    byAreaDesc.forEach((item, rank) => {
+      // largest gets smallest z (back), smallest gets largest z (front)
+      arr[item.idx].z = rank + 1; // 1..N
+    });
+    // Pin the largest modal near the top and give it a depth float (y+z) animation
+    if (arr.length) {
+      let gi = 0;
+      for (let i = 1; i < arr.length; i++) {
+        const a1 = arr[i].widthVw * arr[i].heightVh;
+        const a0 = arr[gi].widthVw * arr[gi].heightVh;
+        if (a1 > a0) gi = i;
+      }
+      const tRand = rnd(777);
+      const lRand = rnd(778);
+      let newTop = 4 + Math.floor(tRand * 8);   // 4~12vh band
+      let newLeft = 10 + Math.floor(lRand * 60); // 10~70vw
+      if (newLeft + arr[gi].widthVw > 100) newLeft = Math.max(0, 100 - arr[gi].widthVw - 1);
+      arr[gi].top = `${newTop}vh`;
+      arr[gi].left = `${newLeft}vw`;
+      arr[gi].topVh = newTop;
+      arr[gi].leftVw = newLeft;
+      arr[gi].type = "winDepthFloat";
+      arr[gi].duration = `${12000 + Math.floor(lRand * 6000)}ms`; // slower for the biggest
+      arr[gi].origin = "top center";
+      arr[gi].direction = "alternate";
+    }
     return arr;
   }, []);
   const triggerArrange = useCallback(() => {
     // Begin smooth transition into a 3x3 grid of 9 survivors
-    setShowQuestion(false);
     setArranging(true);
     setTransitionStart(false);
     // pick top-9 by area
@@ -303,51 +468,82 @@ export default function Page2() {
             100% { opacity: .9; transform: translate3d(0,0,0) scale(0.96); }
           }
           @keyframes winWander {
-            0%   { transform: translate3d(-10px,-8px,0) scale(0.98); }
-            20%  { transform: translate3d(12px,-6px,0) scale(1.00); }
-            40%  { transform: translate3d(6px,10px,0) scale(1.02); }
-            60%  { transform: translate3d(-12px,6px,0) scale(0.99); }
-            80%  { transform: translate3d(8px,-2px,0) scale(1.03); }
-            100% { transform: translate3d(-10px,-8px,0) scale(1.00); }
+            0%   { transform: translate3d(-24px,-18px,0) scale(0.98); }
+            20%  { transform: translate3d(22px,-14px,0) scale(1.01); }
+            40%  { transform: translate3d(16px,18px,0) scale(1.03); }
+            60%  { transform: translate3d(-24px,14px,0) scale(0.99); }
+            80%  { transform: translate3d(18px,-8px,0) scale(1.04); }
+            100% { transform: translate3d(-24px,-18px,0) scale(1.00); }
           }
           @keyframes winSlide {
-            0%   { transform: translate3d(-16px,0,0) scale(1.0); }
-            25%  { transform: translate3d(6px,0,0) scale(1.02); }
-            50%  { transform: translate3d(16px,0,0) scale(1.0); }
-            75%  { transform: translate3d(-6px,0,0) scale(0.98); }
-            100% { transform: translate3d(-16px,0,0) scale(1.0); }
+            0%   { transform: translate3d(-40px,0,0) scale(1.0); }
+            25%  { transform: translate3d(14px,0,0) scale(1.02); }
+            50%  { transform: translate3d(40px,0,0) scale(1.0); }
+            75%  { transform: translate3d(-14px,0,0) scale(0.98); }
+            100% { transform: translate3d(-40px,0,0) scale(1.0); }
           }
           @keyframes winOrganic {
-            0%   { transform: translate3d(-8px,-4px,0) scale(0.98) rotate(0deg); }
-            20%  { transform: translate3d(6px,  4px,0) scale(1.01) rotate(0.6deg); }
-            40%  { transform: translate3d(4px, -6px,0) scale(1.03) rotate(-0.4deg); }
-            60%  { transform: translate3d(-6px, 6px,0) scale(1.00) rotate(0.3deg); }
-            80%  { transform: translate3d(8px, -2px,0) scale(1.02) rotate(-0.6deg); }
-            100% { transform: translate3d(-8px,-4px,0) scale(1.00) rotate(0deg); }
+            0%   { transform: translate3d(-16px,-10px,0) scale(0.98) rotate(0deg); }
+            20%  { transform: translate3d(12px,  10px,0) scale(1.02) rotate(1deg); }
+            40%  { transform: translate3d(10px, -14px,0) scale(1.04) rotate(-0.8deg); }
+            60%  { transform: translate3d(-14px, 14px,0) scale(1.00) rotate(0.6deg); }
+            80%  { transform: translate3d(16px, -8px,0) scale(1.03) rotate(-1deg); }
+            100% { transform: translate3d(-16px,-10px,0) scale(1.00) rotate(0deg); }
           }
           /* includes short holds to feel 'alive' */
           @keyframes winPausey {
             0%   { transform: translate3d(0,0,0) scale(0.98); }
-            20%  { transform: translate3d(6px,-4px,0) scale(1.02); }
-            40%  { transform: translate3d(6px,-4px,0) scale(1.02); } /* hold */
-            60%  { transform: translate3d(-8px,6px,0) scale(0.99); }
-            80%  { transform: translate3d(-8px,6px,0) scale(0.99); }  /* hold */
+            20%  { transform: translate3d(12px,-10px,0) scale(1.02); }
+            40%  { transform: translate3d(12px,-10px,0) scale(1.02); } /* hold */
+            60%  { transform: translate3d(-16px,12px,0) scale(0.99); }
+            80%  { transform: translate3d(-16px,12px,0) scale(0.99); }  /* hold */
             100% { transform: translate3d(0,0,0) scale(1.00); }
           }
           /* long-range roamers */
           @keyframes winRoamWideA {
-            0%   { transform: translate3d(-18vw,-12vh,0) scale(0.98); }
-            25%  { transform: translate3d(10vw,-6vh,0)  scale(1.01); }
-            50%  { transform: translate3d(18vw,10vh,0)  scale(1.04); }
-            75%  { transform: translate3d(-12vw,6vh,0)  scale(1.00); }
-            100% { transform: translate3d(-18vw,-12vh,0) scale(1.00); }
+            0%   { transform: translate3d(-36vw,-24vh,0) scale(0.98); }
+            25%  { transform: translate3d(20vw,-14vh,0)  scale(1.01); }
+            50%  { transform: translate3d(36vw,44vh,0)  scale(1.04); }
+            75%  { transform: translate3d(-24vw,28vh,0)  scale(1.00); }
+            100% { transform: translate3d(-36vw,-24vh,0) scale(1.00); }
           }
           @keyframes winRoamWideB {
-            0%   { transform: translate3d(16vw, -14vh,0) scale(1.00); }
-            20%  { transform: translate3d(-8vw, -4vh,0)  scale(1.02); }
-            40%  { transform: translate3d(-18vw,12vh,0)  scale(1.00); }
-            60%  { transform: translate3d(8vw,  6vh,0)   scale(1.03); }
-            100% { transform: translate3d(16vw, -14vh,0) scale(1.00); }
+            0%   { transform: translate3d(32vw, -24vh,0) scale(1.00); }
+            20%  { transform: translate3d(-18vw, -12vh,0)  scale(1.02); }
+            40%  { transform: translate3d(-34vw,44vh,0)  scale(1.00); }
+            60%  { transform: translate3d(18vw,  28vh,0)   scale(1.03); }
+            100% { transform: translate3d(32vw, -24vh,0) scale(1.00); }
+          }
+          /* large modal roaming mostly near the top band */
+          @keyframes winRoamTop {
+            0%   { transform: translate3d(-36vw, -4vh, 0) scale(1.02); }
+            25%  { transform: translate3d(20vw,  10vh, 0)  scale(1.00); }
+            50%  { transform: translate3d(36vw,  8vh, 0)  scale(1.03); }
+            75%  { transform: translate3d(-18vw, 14vh, 0)  scale(0.99); }
+            100% { transform: translate3d(-36vw, -4vh, 0) scale(1.01); }
+          }
+          /* depth float (y + z only), very gentle for large windows */
+          @keyframes winDepthFloat {
+            0%   { transform: translate3d(0, -18px, 24px) scale(0.99); }
+            25%  { transform: translate3d(0, -6px, 12px)  scale(1.00); }
+            50%  { transform: translate3d(0,  12px, -12px) scale(1.02); }
+            75%  { transform: translate3d(0,  4px, 6px)  scale(1.01); }
+            100% { transform: translate3d(0, -18px, 24px) scale(0.99); }
+          }
+          /* almost still (subtle breathing) */
+          @keyframes winStill {
+            0%   { transform: translate3d(0,0,2px) scale(1.00); }
+            50%  { transform: translate3d(0,1px,-2px) scale(1.01); }
+            100% { transform: translate3d(0,0,2px) scale(1.00); }
+          }
+          /* fast skitter for tiny windows (x+y, lively) */
+          @keyframes winSkitter {
+            0%   { transform: translate3d(-22px,-14px,0) scale(1.00); }
+            20%  { transform: translate3d(20px, -8px,0) scale(1.04); }
+            40%  { transform: translate3d(16px,  16px,0) scale(0.97); }
+            60%  { transform: translate3d(-22px,12px,0) scale(1.03); }
+            80%  { transform: translate3d(10px, -12px,0) scale(1.00); }
+            100% { transform: translate3d(-22px,-14px,0) scale(1.00); }
           }
           @keyframes fallAway {
             0% { opacity: 1; transform: translate3d(0,0,0) scale(1); }
@@ -384,7 +580,35 @@ export default function Page2() {
       {/* Prompt message after fade */}
       <CenterPrompt visible={showPrompt}>모바일을 확인하고 슬라이드 하여, 선택해보세요</CenterPrompt>
       {/* Old modal windows montage */}
-      {showWindows && !arranged && !arranging && <WindowsScatter windows={windows} />}
+      {showWindows && !arranged && !arranging && !mosaic && (
+        <WindowsScatter
+          windows={windows}
+          clarity={clarity}
+          cameraTargets={camTargets}
+          cameraImages={camImages}
+        />
+      )}
+      {/* Mosaic zoom-in step before final 3x3 */}
+      {showWindows && !arranged && mosaic && (
+        <WindowsMosaicTransition
+          windows={windows}
+          targets4={mosaicTargets}
+          start={mosaicStart}
+          durationMs={900}
+          clarity={clarity}
+          cameraTargets={camTargets}
+          cameraImages={camImages}
+          onDone={() => {
+            // Pick center 3x3 from 4x4 = indices where r,c in {1,2,3} with 0-based 0..3
+            const centerIdxs = [];
+            for (let r = 1; r <= 3; r++) for (let c = 1; c <= 3; c++) centerIdxs.push(r * 4 + c);
+            setSurvivors(centerIdxs);
+            setMosaic(false);
+            setMosaicStart(false);
+            setArranged(true);
+          }}
+        />
+      )}
       {/* Transition layer: smooth arrange to 3x3 for 9 survivors */}
       {showWindows && arranging && (
         <WindowsArrangeTransition
@@ -403,6 +627,25 @@ export default function Page2() {
           moodIndex={moodIndex}
           scrollPulseDir={scrollPulseDir}
           scrollKey={scrollPulseKey}
+          clarity={clarity}
+          cameraTargets={camTargets}
+          cameraImages={camImages}
+        />
+      )}
+      {/* Background focus overlay to make question modal stand out */}
+      {showWindows && !arranged && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 8, // below CenterPrompt (z 9), above scatter/transition (z 6-7)
+            background: "rgba(0,0,0,0.18)",
+            backdropFilter: "blur(2.5px) saturate(1.05)",
+            WebkitBackdropFilter: "blur(2.5px) saturate(1.05)",
+            transition: "opacity 350ms ease",
+            opacity: 1,
+          }}
         />
       )}
       {/* Keyword up/down buttons (visible only when arranged) */}
@@ -465,7 +708,16 @@ export default function Page2() {
         </>
       )}
       {/* Center question box after 1s in stage 2 */}
-      <CenterPrompt visible={showWindows && !arranged && showQuestion}>당신이 원하는 휴식은 무엇인가요?</CenterPrompt>
+      <CenterPrompt
+        visible={showWindows && !arranged}
+        os
+        noFade
+      >
+        <div style={{ lineHeight: 1.45 }}>
+          <div>당신이 원하는 휴식은 무엇인가요?</div>
+          <div style={{ marginTop: 8, fontSize: 14, opacity: 0.9 }}>모바일을 스크롤하여 찾아보세요</div>
+        </div>
+      </CenterPrompt>
       {/* Scroll to arrange (desktop/mobile) */}
       {showWindows && !arranged && (
         <ScrollArrange onArrange={triggerArrange} />
@@ -478,8 +730,23 @@ export default function Page2() {
         }}
         onNext={() => {
           if (stage === 2 && !arranged) {
-            triggerArrange();
-            return;
+            // Mosaic step first
+            if (!mosaic) {
+              // build 4x4 targets that fill viewport
+              const cols = 4, rows = 4;
+              const tileW = 100 / cols;
+              const tileH = 100 / rows;
+              const tgs = [];
+              for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                  tgs.push({ left: c * tileW, top: r * tileH, width: tileW, height: tileH });
+                }
+              }
+              setMosaicTargets(tgs);
+              setMosaic(true);
+              requestAnimationFrame(() => setMosaicStart(true));
+              return;
+            }
           }
           if (stage === 2 && arranged) {
             // Persist the last used arranged image (tile 0) for house page

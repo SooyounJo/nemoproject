@@ -7,6 +7,9 @@ export default function WindowsArrangeGrid({
   moodIndex = 0,
   scrollPulseDir = null,
   scrollKey = 0,
+  clarity = 0,
+  cameraTargets = [],
+  cameraImages = [],
 }) {
   const chooseMesySrc = (w, i) => {
     const ww = parseFloat(w.widthVw ?? parseFloat(w.width || "0"));
@@ -16,6 +19,10 @@ export default function WindowsArrangeGrid({
       return `/2d/mesy/img${fallback}.png`;
     }
     const r = ww / hh;
+    // Occasionally surface special city images
+    if (i % 6 === 1) return "/2d/mesy/monocity.png";
+    if (i % 6 === 5) return "/2d/mesy/monocity3.png";
+    if (i % 6 === 4) return "/2d/mesy/monocity2.png";
     const wide = [2, 5, 8, 11];
     const tall = [3, 6, 9];
     const square = [1, 4, 7, 10];
@@ -87,21 +94,36 @@ export default function WindowsArrangeGrid({
               50%  { transform: translateY(50%); }
               100% { transform: translateY(0%); }
             }
+            @keyframes blurPulse {
+              0%, 100% { filter: blur(0.08px); }
+              50% { filter: blur(0.9px); }
+            }
           `,
         }}
       />
       {renderList.map((w, i) => {
         const picsum = choosePicsumSrc(i);
-        const src = picsum || chooseMesySrc(w, i);
+        const camIdx = cameraTargets.includes(i) ? (i % Math.max(1, cameraImages.length)) : -1;
+        const baseSrc = picsum || chooseMesySrc(w, i);
+        const src = camIdx >= 0 && cameraImages[camIdx] ? cameraImages[camIdx] : baseSrc;
         const withScroll = i % 4 === 0; // 일부만 스크롤 효과
         const dur = 7 + (i % 4) * 1.4;
+        const invert = (i % 2) === 1;
+        const blurBase = 0.4;
+        const blurNow = Math.max(0, blurBase * (1 - Math.max(0, Math.min(1, clarity))));
+        const imgFilter = invert
+          ? `blur(${blurNow}px) grayscale(1) invert(1) contrast(1.05)`
+          : `blur(${blurNow}px) grayscale(1) contrast(1.05)`;
         return (
           <div
             key={`grid_${w.id}`}
             style={{
-              background: "#e7e9ee",
-              border: "1px solid #9aa0aa",
+              background: "rgba(231,233,238,0.56)",
+              border: "1px solid rgba(154,160,170,0.45)",
               boxShadow: "0 8px 30px rgba(0,0,0,.25)",
+              backdropFilter: "blur(8px) saturate(1.2)",
+              WebkitBackdropFilter: "blur(8px) saturate(1.2)",
+              borderRadius: 10,
               pointerEvents: "none",
               boxSizing: "border-box",
               overflow: "hidden",
@@ -116,8 +138,8 @@ export default function WindowsArrangeGrid({
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "0 8px",
-                background: "#c8ccd4",
-                borderBottom: "1px solid #9aa0aa",
+                background: "linear-gradient(to bottom, rgba(220,224,232,0.6), rgba(200,204,212,0.6))",
+                borderBottom: "1px solid rgba(154,160,170,0.45)",
                 color: "#222",
                 fontSize: 12,
                 fontWeight: 700,
@@ -126,7 +148,7 @@ export default function WindowsArrangeGrid({
               <span>{`window_${i + 1}`}</span>
               <span style={{ letterSpacing: 2, fontWeight: 700 }}>— □ ×</span>
             </div>
-            <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", filter: moodStyle.filter }}>
+            <div className="mono-halftone" style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", filter: moodStyle.filter }}>
               {/* mood overlay */}
               <div style={{ position: "absolute", inset: 0, background: moodStyle.overlay, mixBlendMode: "multiply", pointerEvents: "none", zIndex: 2 }} />
               {/* track for pulse scroll */}
@@ -141,8 +163,10 @@ export default function WindowsArrangeGrid({
                   animation: pulseAnim,
                 }}
               >
-                <img src={src} alt="" style={{ width: "100%", height: "50%", objectFit: "cover", display: "block" }} />
-                <img src={src} alt="" style={{ width: "100%", height: "50%", objectFit: "cover", display: "block" }} />
+                <div style={{ animation: `blurPulse ${1600 + (i % 4) * 260}ms ease-in-out infinite`, willChange: "filter" }}>
+                  <img src={src} alt="" style={{ width: "100%", height: "50%", objectFit: "cover", display: "block", filter: imgFilter }} />
+                  <img src={src} alt="" style={{ width: "100%", height: "50%", objectFit: "cover", display: "block", filter: imgFilter }} />
+                </div>
               </div>
             </div>
           </div>

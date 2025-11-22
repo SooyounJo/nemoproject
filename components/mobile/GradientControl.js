@@ -71,3 +71,4 @@ export default function GradientControl({ label, onChange, quantize = null, colo
 }
 
 
+

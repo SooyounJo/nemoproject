@@ -12,20 +12,30 @@ export default function LandingVideoCRT({ visible, videoRef, onEnded }) {
         justifyContent: "center",
       }}
     >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          /* Ease-in, hold ~2s, ease-out */
+          @keyframes imgEaseInHoldOut {
+            0% { opacity: 0; animation-timing-function: ease-in; }
+            22.2% { opacity: 1; }         /* ~0.8s of 3.6s */
+            77.8% { opacity: 1; animation-timing-function: ease-out; } /* hold ~2.0s */
+            100% { opacity: 0; }
+          }
+        `,
+        }}
+      />
       <div
         style={{
           position: "relative",
           width: "90vw",
           height: "90vh",
+          background: "transparent",
         }}
       >
-        <video
-          ref={videoRef}
-          src="/vid/nemo.mp4"
-          playsInline
-          muted
-          controls={false}
-          autoPlay
+        <img
+          src="/2d/nemo.png"
+          alt="nemo"
           style={{
             position: "absolute",
             inset: 0,
@@ -33,35 +43,19 @@ export default function LandingVideoCRT({ visible, videoRef, onEnded }) {
             height: "100%",
             objectFit: "contain",
             filter: "contrast(1.06) saturate(1.02)",
-            animation: "crtFlicker 6s steps(2,end) infinite, jitter 2.2s steps(18,end) infinite",
+            transform: "scale(0.5)",
+            transformOrigin: "center center",
+            animation: "imgEaseInHoldOut 3600ms linear forwards",
+            display: "block",
           }}
-          onError={() => {}}
-          onEnded={onEnded}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background:
-              "repeating-linear-gradient(to bottom, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)",
-            opacity: 0.12,
-            mixBlendMode: "multiply",
-            animation: "scanMove 6s linear infinite",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            background:
-              "radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.25) 100%)",
+          onAnimationEnd={() => {
+            if (typeof onEnded === "function") onEnded();
           }}
         />
       </div>
     </div>
   );
 }
+
 
 

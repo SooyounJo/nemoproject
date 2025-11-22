@@ -15,4 +15,23 @@ html, body, button, input, select, textarea {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Monotone + halftone (print dot) effect for OS-style image areas */
+.mono-halftone {
+  position: relative;
+  filter: grayscale(100%) contrast(1.05) brightness(1.02);
+}
+.mono-halftone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* small dot pattern; tweak size and opacity as needed */
+  background-image:
+    radial-gradient(currentColor 0.7px, transparent 0.7px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.18;
+}
+
+
 
