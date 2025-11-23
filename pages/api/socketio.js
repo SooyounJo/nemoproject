@@ -106,6 +106,28 @@ export default function handler(req, res) {
     bindNamespace(res.socket.server.io.of("/desktop"));
     bindNamespace(res.socket.server.io.of("/tv"));
     bindNamespace(res.socket.server.io.of("/sbm"));
+    // Cross-namespace relay: /mobile → /desktop for control events
+    try {
+      const mobileNsp = res.socket.server.io.of("/mobile");
+      const desktopNsp = res.socket.server.io.of("/desktop");
+      mobileNsp.on("connection", (socket) => {
+        socket.on("next", () => desktopNsp.emit("next"));
+        socket.on("prev", () => desktopNsp.emit("prev"));
+        socket.on("setStep", (value) =>
+          desktopNsp.emit("setStep", typeof value === "number" ? value : 0)
+        );
+        socket.on("progress", (value) =>
+          desktopNsp.emit("progress", typeof value === "number" ? value : 0)
+        );
+        socket.on("overlayOpacity", (value) =>
+          desktopNsp.emit("overlayOpacity", typeof value === "number" ? value : 0)
+        );
+        socket.on("overlayIndex", (value) => {
+          const v = typeof value === "number" ? Math.floor(value) : 0;
+          desktopNsp.emit("overlayIndex", v);
+        });
+      });
+    } catch {}
   }
   res.end();
 }

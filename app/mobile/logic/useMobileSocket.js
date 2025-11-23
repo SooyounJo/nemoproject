@@ -8,8 +8,18 @@ export default function useMobileSocket() {
 	useEffect(() => {
 		const s = io("/mobile", { path: "/api/socketio" });
 		sockRef.current = s;
+
+		function onProgress(e) {
+			try {
+				const v = typeof e?.detail === "number" ? e.detail : 0;
+				s.emit("progress", Math.max(0, Math.min(1, v)));
+			} catch {}
+		}
+		window.addEventListener("bg-gradient:progress", onProgress);
+
 		return () => {
-			s.disconnect();
+			window.removeEventListener("bg-gradient:progress", onProgress);
+			try { s.disconnect(); } catch {}
 			sockRef.current = null;
 		};
 	}, []);

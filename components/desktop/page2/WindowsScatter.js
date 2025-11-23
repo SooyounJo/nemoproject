@@ -76,9 +76,9 @@ export default function WindowsScatter({ windows, clarity = 0, cameraTargets = [
         const pulseMs = 1800 + (i % 5) * 240;
         return (
           <div key={w.id} style={{ position: "absolute", zIndex: typeof w.z === "number" ? w.z : undefined, left: w.left, top: w.top, width: w.width, height: w.height, transform: `scale(${lensScale})`, transformOrigin: "center" }}>
-            <div
-              style={{
-                position: "absolute",
+          <div
+            style={{
+              position: "absolute",
                 inset: 0,
                 background: "rgba(231,233,238,0.56)",
                 border: "1px solid rgba(154,160,170,0.45)",
@@ -87,49 +87,49 @@ export default function WindowsScatter({ windows, clarity = 0, cameraTargets = [
                 WebkitBackdropFilter: "blur(8px) saturate(1.2)",
                 borderRadius: 10,
                 overflow: "hidden",
-                animation: `${w.type} ${w.duration} ${w.timing} ${w.delay} infinite ${w.direction}`,
+              animation: `${w.type} ${w.duration} ${w.timing} ${w.delay} infinite ${w.direction}`,
                 animationPlayState: paused ? "paused" : "running",
-                transformOrigin: w.origin,
-              }}
-            >
-              <div
-                style={{
-                  height: 26,
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "0 8px",
+              transformOrigin: w.origin,
+            }}
+          >
+            <div
+              style={{
+                height: 26,
+                display: "flex",
+                alignItems: "center",
+                padding: "0 8px",
                   background: "linear-gradient(to bottom, rgba(220,224,232,0.6), rgba(200,204,212,0.6))",
                   borderBottom: "1px solid rgba(154,160,170,0.45)",
-                  color: "#222",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>{`window_${i + 1}`}</span>
-                <span style={{ letterSpacing: 2, fontWeight: 700 }}>— □ ×</span>
-              </div>
-              {withScroll ? (
+                color: "#222",
+                fontSize: 12,
+                fontWeight: 700,
+                justifyContent: "space-between",
+              }}
+            >
+              <span>{`window_${i + 1}`}</span>
+              <span style={{ letterSpacing: 2, fontWeight: 700 }}>— □ ×</span>
+            </div>
+            {withScroll ? (
                 <div className="mono-halftone" style={{ position: "absolute", inset: "26px 0 0 0", overflow: "hidden", display: "flex", alignItems: "flex-start", justifyContent: "center", animation: `blurPulse ${pulseMs}ms ease-in-out infinite`, willChange: "filter" }}>
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      /* let content define its own height; translateY percentages will be relative to this */
-                      animation: `modalScrollY ${dur}s linear infinite alternate`,
-                    }}
-                  >
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    /* let content define its own height; translateY percentages will be relative to this */
+                    animation: `modalScrollY ${dur}s linear infinite alternate`,
+                  }}
+                >
                     <img src={src} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", objectPosition: "top center", display: "block", filter: imgFilter }} />
                     <img src={src} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", objectPosition: "top center", display: "block", filter: imgFilter }} />
-                  </div>
                 </div>
-              ) : (
+              </div>
+            ) : (
                 <div className="mono-halftone" style={{ position: "absolute", inset: "26px 0 0 0", overflow: "hidden", display: "flex", alignItems: "flex-start", justifyContent: "center", animation: `blurPulse ${pulseMs}ms ease-in-out infinite`, willChange: "filter" }}>
                   <img src={src} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", objectPosition: "top center", filter: imgFilter }} />
-                </div>
-              )}
+              </div>
+            )}
             </div>
           </div>
         );

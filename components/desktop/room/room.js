@@ -375,6 +375,11 @@ export default function Room(props) {
           onDone(null);
           return;
         }
+        // Special white mode: render plain white plane
+        if (url === "__WHITE__") {
+          onDone("__WHITE__");
+          return;
+        }
         loader.load(
           url,
           (t) => {
@@ -401,9 +406,10 @@ export default function Room(props) {
       // material placeholder; map set after load
       const mat = new THREE.MeshBasicMaterial({
         map: null,
+        color: 0xffffff,
         transparent: true,
-        depthTest: true,      // occluded by model
-        depthWrite: true,
+        depthTest: false,     // ensure visibility over geometry
+        depthWrite: false,
         toneMapped: false,
         opacity: 1.0,
       });
@@ -412,7 +418,8 @@ export default function Room(props) {
       const s = typeof overlayScale === "number" ? overlayScale : 1.2;
       plane.position.set(0, 0, 0);
       plane.scale.setScalar(s);
-      // default render order; let depth decide occlusion
+      // render last to appear on top of scene
+      plane.renderOrder = 999;
       group.add(plane);
       overlayPlaneRef.current = plane;
       overlayMatRef.current = mat;
@@ -420,8 +427,15 @@ export default function Room(props) {
       loadUrl(initUrl || "/2d/nemo.png", (loaded) => {
         tex = loaded;
         overlayTexRef.current = loaded;
-        mat.map = loaded;
-        mat.needsUpdate = true;
+        if (loaded === "__WHITE__") {
+          mat.map = null;
+          mat.color = new THREE.Color(0xffffff);
+          mat.needsUpdate = true;
+        } else {
+          mat.map = loaded;
+          mat.color = new THREE.Color(0xffffff);
+          mat.needsUpdate = true;
+        }
       });
     }
 
@@ -806,6 +820,18 @@ export default function Room(props) {
     if (!currMat) return;
     let cancelled = false;
     const loader = new THREE.TextureLoader();
+    if (overlayImageUrl === "__WHITE__") {
+      // switch to plain white
+      if (overlayTexRef.current && overlayTexRef.current.dispose) {
+        overlayTexRef.current.dispose();
+      }
+      currMat.map = null;
+      currMat.color = new THREE.Color(0xffffff);
+      currMat.opacity = 1.0;
+      currMat.needsUpdate = true;
+      overlayTexRef.current = null;
+      return;
+    }
     loader.load(
       overlayImageUrl,
       (tex) => {
@@ -1563,51 +1589,6 @@ export default function Room(props) {
             style={{ width: 220 }}
           />
           <span style={{ color: "#bfc3ca", fontSize: 12 }}>{lightProgress.toFixed(3)}</span>
-          <span style={{ color: "#bfc3ca", fontSize: 12, marginLeft: 16, minWidth: 70, textAlign: "right" }}>HTML Pos</span>
-          <input
-            type="range"
-            min={-10}
-            max={20}
-            step={0.001}
-            value={htmlDist}
-            onChange={(e) => setHtmlDist(parseFloat(e.target.value))}
-            style={{ width: 220 }}
-          />
-          <span style={{ color: "#bfc3ca", fontSize: 12 }}>{htmlDist.toFixed(3)}</span>
-        </div>
-      )}
-      {/* Overlay sequence slider (top) */}
-      {overlayVisible && ((Array.isArray(overlaySeqList) && overlaySeqList.length > 0) || (typeof overlaySeqCount === "number" && overlaySeqCount > 0)) && (
-        <div
-          style={{
-            position: "fixed",
-            top: showPathSlider ? 52 : 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 70,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            background: "rgba(17,19,24,.6)",
-            border: "1px solid #23262d",
-            borderRadius: 10,
-            padding: "8px 12px",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <span style={{ color: "#bfc3ca", fontSize: 12, minWidth: 60, textAlign: "right" }}>Overlay</span>
-          <input
-            type="range"
-            min={1}
-            max={Array.isArray(overlaySeqList) ? overlaySeqList.length : Math.max(1, overlaySeqCount || 1)}
-            step={1}
-            value={overlayIndex + 1}
-            onChange={(e) => setOverlayIndex(Math.max(0, (parseInt(e.target.value, 10) || 1) - 1))}
-            style={{ width: 280 }}
-          />
-          <span style={{ color: "#bfc3ca", fontSize: 12 }}>
-            {`${overlayIndex + 1}/${Array.isArray(overlaySeqList) ? overlaySeqList.length : Math.max(1, overlaySeqCount || 1)}`}
-          </span>
         </div>
       )}
       {showHtmlSliders && (

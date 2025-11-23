@@ -70,7 +70,18 @@ export default function FixedRoomPage() {
       setStep(nv);
     };
     const onProgress = (v: number) => {
-      if (typeof v === "number") setRemoteProgress(Math.max(0, Math.min(1, v)));
+      if (typeof v === "number") {
+        const clamped = Math.max(0, Math.min(1, v));
+        setRemoteProgress(clamped);
+        // Map progress to step thresholds: evenly distribute across available steps
+        try {
+          const count = steps.length;
+          if (count > 0) {
+            const idx = Math.min(count - 1, Math.max(0, Math.floor(clamped * count)));
+            setStep((prev) => (prev !== idx ? idx : prev));
+          }
+        } catch {}
+      }
     };
     const onOverlay = (v: number) => {
       if (typeof v === "number") setRemoteOverlay(Math.max(0, Math.min(1, v)));
@@ -124,31 +135,26 @@ export default function FixedRoomPage() {
   const [bannerText, setBannerText] = useState<string>("");
   const [bannerVisible, setBannerVisible] = useState<boolean>(false);
   const bannerTimerRef = useRef<any>(null);
-  // html2: random image on second Next (step >= 2)
+  // html2: white by default on step >= 2, and can switch to random genimg on user action
   const [html2Url, setHtml2Url] = useState<string | undefined>(undefined);
-  const overlayPool = useMemo(
-    () => [
-      "/2d/pic/nightcity.png",
-      "/2d/pic/rainycity.png",
-      "/2d/pic/rainywindow.png",
-      "/2d/pic/christmasnight.png",
-      "/2d/pic/snowystreet.png",
-      "/2d/pic/snowynight.png",
-      "/2d/pic/autumstreet.png",
-      "/2d/pic/autumsunset.png",
-      "/2d/pic/foggyforest.png",
-      "/2d/pic/windymountine.png",
-      "/2d/pic/rainysummer.png",
-      "/2d/pic/summerriver.png",
-      "/2d/pic/summerbeach.png",
-      "/2d/pic/rainyspring.png",
-    ],
-    []
-  );
+  // Build a static list of public/genimg/** candidates
+  const overlayPool = useMemo(() => ([
+    // public/genimg/1
+    "/genimg/1/1-1.png", "/genimg/1/1-2.png", "/genimg/1/1-3.png", "/genimg/1/1-4.png",
+    // public/genimg/2
+    "/genimg/2/2-1.png", "/genimg/2/2-2.png", "/genimg/2/2-3.png", "/genimg/2/2-4.png",
+    // public/genimg/3
+    "/genimg/3/3-1.png", "/genimg/3/3-2.png", "/genimg/3/3-3.png", "/genimg/3/3-4.png", "/genimg/3/3-5.png",
+    "/genimg/3/3-6.png", "/genimg/3/3-7.png", "/genimg/3/3-8.png", "/genimg/3/3-9.png", "/genimg/3/3-10.png",
+    // public/genimg/4
+    "/genimg/4/4-1.png", "/genimg/4/4-2.png", "/genimg/4/4-3.png", "/genimg/4/4-4.png", "/genimg/4/4-5.png",
+    // public/genimg/5
+    "/genimg/5/5-1.png", "/genimg/5/5-2.png", "/genimg/5/5-3.png", "/genimg/5/5-4.png",
+  ]), []);
   useEffect(() => {
     if (step >= 2) {
-      const i = Math.floor(Math.random() * overlayPool.length);
-      setHtml2Url(overlayPool[i]);
+      // default white state first
+      setHtml2Url("__WHITE__");
     } else {
       setHtml2Url(undefined);
     }
@@ -177,10 +183,10 @@ export default function FixedRoomPage() {
       }
     };
   }, [step]);
-  // emit selected image to tv/sbm when moving past step 2 (bridge demo)
+  // emit selected image to tv/sbm when updated (skip white)
   useEffect(() => {
     try {
-      if (step >= 2 && html2Url) {
+      if (step >= 2 && html2Url && html2Url !== "__WHITE__") {
         const s = io({ path: "/api/socketio" }); // default namespace bridge
         s.emit("imageSelected", html2Url);
         setTimeout(() => s.disconnect(), 600);
@@ -219,24 +225,9 @@ export default function FixedRoomPage() {
         overlayScale={5.0}
         overlayOpacityTarget={overlayTarget}
         overlayOpacityLerp={dynamicOverlayLerp}
-        /* html2: random single image after two Next presses */
+        /* html2: starts white; can switch to random genimg via button */
         overlayImageUrl={html2Url}
-        overlaySeqList={[
-          "/2d/pic/nightcity.png",
-          "/2d/pic/rainycity.png",
-          "/2d/pic/rainywindow.png",
-          "/2d/pic/christmasnight.png",
-          "/2d/pic/snowystreet.png",
-          "/2d/pic/snowynight.png",
-          "/2d/pic/autumstreet.png",
-          "/2d/pic/autumsunset.png",
-          "/2d/pic/foggyforest.png",
-          "/2d/pic/windymountine.png",
-          "/2d/pic/rainysummer.png",
-          "/2d/pic/summerriver.png",
-          "/2d/pic/summerbeach.png",
-          "/2d/pic/rainyspring.png",
-        ]}
+        overlaySeqList={[]}
         overlayIndex={step >= 2 && remoteOverlayIndex !== null ? remoteOverlayIndex : undefined}
         overlaySlideLerp={500}
         progressTarget={progressTarget as any}
@@ -304,6 +295,27 @@ export default function FixedRoomPage() {
             }}
           >
             다음
+          </button>
+        )}
+        {step >= 2 && (
+          <button
+            onClick={() => {
+              const i = Math.floor(Math.random() * overlayPool.length);
+              const url = overlayPool[i];
+              // cache-bust to force texture reload even if same file is picked
+              const bust = `${url}?t=${Date.now()}`;
+              setHtml2Url(bust);
+            }}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "1px solid #6b5bd4",
+              background: "#1a1f2e",
+              color: "#e5e7eb",
+              cursor: "pointer",
+            }}
+          >
+            밖을 보기
           </button>
         )}
       </div>
