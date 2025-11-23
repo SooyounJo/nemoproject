@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export default function TopQuestion() {
   const [show, setShow] = useState(false);
   // Start with the former 3rd question as the first
-  const [text, setText] = useState("편안함이 느껴지는 무드를 찾아보세요");
+  const [text, setText] = useState("이 느껴지는 무드를 찾아보세요");
   const [stage, setStage] = useState(1);
   const currentStageRef = useRef(1);
   const finalizedRef = useRef(false); // prevent re-show after final
@@ -30,7 +30,7 @@ export default function TopQuestion() {
         const s = currentStageRef.current;
         if (s === 1) {
           // move to stage 2 question (unchanged)
-          setText("창밖에 어떤 빛이 보였으면 좋겠나요?");
+          setText("하루 중 어떤 시간에 휴식이 필요하신가요?");
           setShow(true);
           setStage(2);
           currentStageRef.current = 2;
@@ -39,7 +39,7 @@ export default function TopQuestion() {
           window.dispatchEvent(new CustomEvent("bg-gradient:enable-scroll"));
         } else if (s === 2) {
           // move to stage 3 question (formerly stage 1)
-          setText("하루 중 어떤 시간에 휴식이 필요하신가요?");
+          setText("창밖에 어떤 빛이 보였으면 좋겠나요?");
           setShow(true);
           setStage(3);
           currentStageRef.current = 3;

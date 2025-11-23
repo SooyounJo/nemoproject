@@ -52,6 +52,15 @@ export default function handler(req, res) {
       socket.on("genClear", () => {
         io.emit("genClear");
       });
+      // bridge: selected image from desktop/room → tv & sbm
+      socket.on("imageSelected", (url) => {
+        const safeUrl = typeof url === "string" && url ? url : "";
+        if (!safeUrl) return;
+        try {
+          io.of("/tv").emit("imageSelected", safeUrl);
+          io.of("/sbm").emit("imageSelected", safeUrl);
+        } catch {}
+      });
     });
 
     // Namespaced channels to avoid cross-talk between mobile and desktop
@@ -84,10 +93,19 @@ export default function handler(req, res) {
           nsp.emit("genImage", { url, cols, rows, delayMs });
         });
         socket.on("genClear", () => nsp.emit("genClear"));
+        socket.on("imageSelected", (url) => {
+          const safeUrl = typeof url === "string" && url ? url : "";
+          if (!safeUrl) return;
+          try {
+            nsp.emit("imageSelected", safeUrl);
+          } catch {}
+        });
       });
     };
     bindNamespace(res.socket.server.io.of("/mobile"));
     bindNamespace(res.socket.server.io.of("/desktop"));
+    bindNamespace(res.socket.server.io.of("/tv"));
+    bindNamespace(res.socket.server.io.of("/sbm"));
   }
   res.end();
 }

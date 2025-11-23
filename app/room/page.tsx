@@ -124,6 +124,35 @@ export default function FixedRoomPage() {
   const [bannerText, setBannerText] = useState<string>("");
   const [bannerVisible, setBannerVisible] = useState<boolean>(false);
   const bannerTimerRef = useRef<any>(null);
+  // html2: random image on second Next (step >= 2)
+  const [html2Url, setHtml2Url] = useState<string | undefined>(undefined);
+  const overlayPool = useMemo(
+    () => [
+      "/2d/pic/nightcity.png",
+      "/2d/pic/rainycity.png",
+      "/2d/pic/rainywindow.png",
+      "/2d/pic/christmasnight.png",
+      "/2d/pic/snowystreet.png",
+      "/2d/pic/snowynight.png",
+      "/2d/pic/autumstreet.png",
+      "/2d/pic/autumsunset.png",
+      "/2d/pic/foggyforest.png",
+      "/2d/pic/windymountine.png",
+      "/2d/pic/rainysummer.png",
+      "/2d/pic/summerriver.png",
+      "/2d/pic/summerbeach.png",
+      "/2d/pic/rainyspring.png",
+    ],
+    []
+  );
+  useEffect(() => {
+    if (step >= 2) {
+      const i = Math.floor(Math.random() * overlayPool.length);
+      setHtml2Url(overlayPool[i]);
+    } else {
+      setHtml2Url(undefined);
+    }
+  }, [step, overlayPool]);
   useEffect(() => {
     if (bannerTimerRef.current) {
       clearTimeout(bannerTimerRef.current);
@@ -148,6 +177,17 @@ export default function FixedRoomPage() {
       }
     };
   }, [step]);
+  // emit selected image to tv/sbm when moving past step 2 (bridge demo)
+  useEffect(() => {
+    try {
+      if (step >= 2 && html2Url) {
+        const s = io({ path: "/api/socketio" }); // default namespace bridge
+        s.emit("imageSelected", html2Url);
+        setTimeout(() => s.disconnect(), 600);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, html2Url]);
 
   return (
     <>
@@ -173,11 +213,14 @@ export default function FixedRoomPage() {
         initialHtmlOffZ={pHtmlOffZ}
         initialHtmlScaleMul={pHtmlScale}
         htmlVisible={step < 2}
-        overlayVisible={false}
+        /* show HTML (overlay plane) again after two Next presses (step >= 2) */
+        overlayVisible={step >= 2}
         overlayPos={{ x: -3.9, y: -4.4, z: -18.6 }}
         overlayScale={5.0}
         overlayOpacityTarget={overlayTarget}
         overlayOpacityLerp={dynamicOverlayLerp}
+        /* html2: random single image after two Next presses */
+        overlayImageUrl={html2Url}
         overlaySeqList={[
           "/2d/pic/nightcity.png",
           "/2d/pic/rainycity.png",
