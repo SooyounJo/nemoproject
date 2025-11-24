@@ -378,18 +378,12 @@ export default function FixedRoomPage() {
           {bannerText}
         </div>
       )}
-      <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 12, zIndex: 40 }}>
+      {/* Bottom-right glass nav */}
+      <div style={{ position: "fixed", right: 16, bottom: 16, display: "flex", gap: 8, zIndex: 40, padding: "6px 8px", borderRadius: 12, background: "rgba(17,19,24,0.35)", border: "1px solid rgba(255,255,255,0.16)", backdropFilter: "blur(10px) saturate(1.02)" }}>
         {step > 0 && (
           <button
             onClick={() => setStep(Math.max(0, step - 1))}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 10,
-              border: "1px solid #23262d",
-              background: "#111318",
-              color: "#e5e7eb",
-              cursor: "pointer",
-            }}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(17,19,24,0.35)", color: "#e5e7eb", cursor: "pointer" }}
           >
             이전
           </button>
@@ -397,19 +391,11 @@ export default function FixedRoomPage() {
         {step < steps.length - 1 && (
           <button
             onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 10,
-              border: "1px solid #23262d",
-              background: "#111318",
-              color: "#e5e7eb",
-              cursor: "pointer",
-            }}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(17,19,24,0.35)", color: "#e5e7eb", cursor: "pointer" }}
           >
             다음
           </button>
         )}
-        {/* room 단계에서는 TV 송출 버튼을 노출하지 않음 */}
       </div>
       {/* Fade to black at step 3 */}
       <div

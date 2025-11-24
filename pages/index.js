@@ -116,6 +116,8 @@ export default function Index() {
   const [fading, setFading] = useState(false);
   const [fxGather, setFxGather] = useState(false);
   const [fxExplode, setFxExplode] = useState(false);
+  const mainAudioRef = useRef(null);
+  const [needsTap, setNeedsTap] = useState(false);
 
   useEffect(() => {
     // generate QR for /mobile on same host (socket path shared)
@@ -124,6 +126,44 @@ export default function Index() {
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(""));
   }, []);
+
+  function rampVolume(audio, target, ms) {
+    if (!audio) return;
+    const steps = Math.max(1, Math.floor(ms / 50));
+    const start = audio.volume;
+    const delta = target - start;
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      const t = i / steps;
+      audio.volume = Math.max(0, Math.min(1, start + delta * t));
+      if (i >= steps) clearInterval(id);
+    }, 50);
+  }
+
+  useEffect(() => {
+    // boot background main music at landing
+    try {
+      const a = new Audio("/mmusic/main.mp3");
+      a.loop = true;
+      a.volume = 0;
+      mainAudioRef.current = a;
+      a.play().then(() => {
+        rampVolume(a, 0.5, 1200);
+      }).catch(() => setNeedsTap(true));
+    } catch {}
+  }, []);
+
+  const enableAudio = () => {
+    try {
+      const a = mainAudioRef.current || new Audio("/mmusic/main.mp3");
+      mainAudioRef.current = a;
+      a.loop = true;
+      if (a.paused) a.play().catch(() => {});
+      rampVolume(a, 0.5, 800);
+      setNeedsTap(false);
+    } catch {}
+  };
 
   useEffect(() => {
     // Listen for mobile connection to auto proceed
@@ -157,6 +197,7 @@ export default function Index() {
         background: "#0b0d12",
         overflow: "hidden",
       }}
+      onPointerDown={needsTap ? enableAudio : undefined}
     >
       <Head>
         <link
@@ -220,26 +261,60 @@ export default function Index() {
         ) : null}
         </div>
 
-      {/* Debug: Next button (bottom-right) */}
+      {/* Bottom-right glass nav */}
+      <div
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: 16,
+          zIndex: 4,
+          display: "flex",
+          gap: 8,
+          padding: "6px 8px",
+          borderRadius: 12,
+          background: "rgba(17,19,24,0.35)",
+          border: "1px solid rgba(255,255,255,0.16)",
+          backdropFilter: "blur(10px) saturate(1.02)",
+        }}
+      >
         <button
           onClick={handleStart}
           style={{
-          position: "absolute",
-          right: 22,
-          bottom: 22,
-          zIndex: 3,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: "1px solid #2a2f3a",
-            background: "#111318",
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(17,19,24,0.35)",
             color: "#e5e7eb",
             fontWeight: 600,
-            letterSpacing: 0.2,
             cursor: "pointer",
           }}
         >
-        다음
+          다음
         </button>
+      </div>
+
+      {/* Sound opt-in */}
+      {needsTap ? (
+        <div
+          onClick={enableAudio}
+          style={{
+            position: "absolute",
+            bottom: 22,
+            left: 22,
+            zIndex: 4,
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "rgba(0,0,0,0.35)",
+            color: "#e5e7eb",
+            fontSize: 13,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          🔊 탭하여 사운드 활성화
+        </div>
+      ) : null}
 
       {/* Fade-to-black overlay */}
       <div

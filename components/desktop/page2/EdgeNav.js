@@ -2,21 +2,31 @@
 
 export default function EdgeNav({ onPrev, onNext }) {
   return (
-    <>
+    <div
+      style={{
+        position: "fixed",
+        right: 16,
+        bottom: 16,
+        zIndex: 12,
+        display: "flex",
+        gap: 8,
+        padding: "6px 8px",
+        borderRadius: 12,
+        background: "rgba(17,19,24,0.35)",
+        border: "1px solid rgba(255,255,255,0.16)",
+        backdropFilter: "blur(10px) saturate(1.02)",
+        WebkitBackdropFilter: "blur(10px) saturate(1.02)",
+      }}
+    >
       <button
         onClick={onPrev}
         style={{
-          position: "absolute",
-          left: 8,
-          top: "50%",
-          transform: "translateY(-50%)",
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px solid #2a2f3a",
-          background: "rgba(17,19,24,.8)",
+          padding: "6px 10px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.14)",
+          background: "rgba(17,19,24,0.35)",
           color: "#e5e7eb",
           cursor: "pointer",
-          zIndex: 8,
         }}
         aria-label="Previous"
         title="Previous"
@@ -26,24 +36,19 @@ export default function EdgeNav({ onPrev, onNext }) {
       <button
         onClick={onNext}
         style={{
-          position: "absolute",
-          right: 8,
-          top: "50%",
-          transform: "translateY(-50%)",
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px solid #2a2f3a",
-          background: "rgba(17,19,24,.8)",
+          padding: "6px 10px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.14)",
+          background: "rgba(17,19,24,0.35)",
           color: "#e5e7eb",
           cursor: "pointer",
-          zIndex: 8,
         }}
         aria-label="Next"
         title="Next"
       >
         다음
       </button>
-    </>
+    </div>
   );
 }
 
