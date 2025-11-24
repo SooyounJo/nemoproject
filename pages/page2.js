@@ -10,6 +10,8 @@ import WindowsArrangeGrid from "@/components/desktop/page2/WindowsArrangeGrid";
 import CenterPrompt from "@/components/desktop/page2/CenterPrompt";
 import FadeOverlay from "@/components/desktop/page2/FadeOverlay";
 import EdgeNav from "@/components/desktop/page2/EdgeNav";
+import { getTimeSlotFromProgress, buildTvUrl } from "@/lib/mood-select";
+import { FOLDER_TO_MOOD } from "@/lib/mood-config";
 
 export default function Page2() {
   const [show, setShow] = useState(false);
@@ -360,6 +362,7 @@ export default function Page2() {
   const [moodLocked, setMoodLocked] = useState(false);
   const socketRef = useRef(null);
   const moodLockedRef = useRef(false);
+  const [selectedTime, setSelectedTime] = useState("day");
   const triggerArrange = useCallback(() => {
     // Begin smooth transition into a 2x2 grid of 4 survivors
     setArranging(true);
@@ -422,16 +425,18 @@ export default function Page2() {
           localStorage.setItem("nemo_last_image", last);
           const grid = Array.from({ length: 9 }).map((_, i) => arr[i % arr.length]);
           localStorage.setItem("nemo_grid_images", JSON.stringify(grid));
+          // also persist selection: time + mood
+          const moodNow = FOLDER_TO_MOOD[folderIndex] || "";
+          if (selectedTime) localStorage.setItem("nemo_time_slot", selectedTime);
+          if (moodNow) localStorage.setItem("nemo_color_mood", moodNow);
         } catch {}
         try { socketRef.current?.emit("moodSelect"); } catch {}
         try { socketRef.current?.emit("moodScroll:disable"); } catch {}
         setMoodLocked(true);
         moodLockedRef.current = true;
-        // Schedule TV show of a genimg after 2 seconds
+        // Schedule TV show of a genimg after 2 seconds (time-based 2번 이미지)
         try {
-          const n = Math.floor(Math.random() * 9) + 1;
-          const k = Math.floor(Math.random() * 4) + 1;
-          const tvUrl = `/genimg/${n}/${n}-${k}.png`;
+          const tvUrl = buildTvUrl(selectedTime || "day", 2);
           setTimeout(() => {
             try { socketRef.current?.emit("tvShow", tvUrl); } catch {}
           }, 2000);
@@ -453,6 +458,8 @@ export default function Page2() {
         const idx = Math.max(1, Math.min(9, Math.floor(value * 9) + 1));
         setFolderIndex(idx);
       }
+      // derive time slot from progress for later TV selection
+      setSelectedTime(getTimeSlotFromProgress(value));
       // Ensure we are on windows stage and arranged 2x2 to visualize mood
       if (stage < 2) {
         goToStage(2);

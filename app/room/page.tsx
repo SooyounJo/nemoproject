@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
+import TypoWeather from "@/app/components/room/TypoWeather";
+import { getTimeSlotFromProgress } from "@/lib/mood-select";
 
 export default function FixedRoomPage() {
   // 페이지 스크롤 잠금
@@ -292,16 +294,11 @@ export default function FixedRoomPage() {
     };
   }, [step]);
   // During step 2 (weather question), map mobile scroll progress to a weather image (HTML screen)
-  useEffect(() => {
-    if (step !== 2) return;
-    const pool = weatherPool;
-    if (!pool || pool.length === 0) return;
-    const p = typeof remoteProgress === "number" ? remoteProgress : 0;
-    const idx = Math.max(0, Math.min(pool.length - 1, Math.floor(p * pool.length)));
-    const url = pool[idx];
-    if (url && url !== html2Url) setHtml2Url(url);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, remoteProgress]);
+  // Weather index for typo overlay (6 bins)
+  const weatherIdx = useMemo(() => {
+    const p = typeof remoteProgress === "number" ? Math.max(0, Math.min(1, remoteProgress)) : 0;
+    return Math.min(5, Math.floor(p * 6));
+  }, [remoteProgress]);
 
   // Freeze desktop screen 2x2 images to the user's last selection (do NOT follow light path)
   const [screenGridImages, setScreenGridImages] = useState<string[] | undefined>(undefined);
@@ -339,22 +336,13 @@ export default function FixedRoomPage() {
         initialHtmlOffZ={pHtmlOffZ}
         initialHtmlScaleMul={pHtmlScale}
         htmlVisible={step < 2}
-        /* remove legacy planes - use HTML picker instead */
+        /* remove legacy planes and overlays */
         overlayVisible={false}
-        overlayPos={{ x: -3.9, y: -1.8, z: -18.6 }}
-        overlayScale={1.2}
-        overlayOpacityTarget={overlayTarget}
-        overlayOpacityLerp={dynamicOverlayLerp}
         enableImg2dPlane={false}
-        enableCssWindow={step >= 2}
-        img2dUrl={html2Url || "/weather/sunny.png"}
-        img2dPos={{ x: -4.9, y: -7.20, z: -30.0 }}
-        img2dScale={0.013}
-        img2dOpacity={0.32}
-        /* html2: starts white; can switch to random genimg via button */
-        overlayImageUrl={html2Url}
+        enableCssWindow={false}
+        overlayImageUrl={undefined}
         overlaySeqList={[]}
-        overlayIndex={step >= 2 && remoteOverlayIndex !== null ? remoteOverlayIndex : undefined}
+        overlayIndex={undefined}
         overlaySlideLerp={500}
         progressTarget={progressTarget as any}
         progressLerp={dynamicProgressLerp}
@@ -368,106 +356,13 @@ export default function FixedRoomPage() {
         staticView={true}
         screenGridImages={screenGridImages}
       />
-      {/* Picker Overlay */}
-      {pickerOpen && step >= 2 && (
-        <div
-          onWheel={(e) => {
-            const dir = e.deltaY > 0 ? 1 : -1;
-            setPickerIndex((idx) => {
-              const next = (idx + dir + pickerPool.length) % pickerPool.length;
-              return next;
-            });
-            if (pickerStopTimer.current) clearTimeout(pickerStopTimer.current);
-            pickerStopTimer.current = setTimeout(() => {
-              const chosen = pickerPool[pickerIndex]?.url;
-              if (chosen && chosen !== html2Url) setHtml2Url(chosen);
-            }, 500);
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            zIndex: 80,
-            pointerEvents: "auto",
-            background: "rgba(0,0,0,0.25)",
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <div
-            style={{
-              width: "72vw",
-              height: "54vh",
-              borderRadius: 16,
-              border: "1px solid rgba(255,255,255,0.16)",
-              background: "rgba(20,22,28,0.35)",
-              backdropFilter: "blur(8px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-              boxShadow: "0 20px 80px rgba(0,0,0,0.45)",
-            }}
-          >
-            {/* Carousel-like layout */}
-            <div
-              style={{
-                display: "flex",
-                gap: 24,
-                transform: "translateZ(0)",
-                willChange: "transform",
-              }}
-            >
-              {pickerPool.map((item, i) => {
-                const d = Math.min(
-                  Math.abs(i - pickerIndex),
-                  pickerPool.length - Math.abs(i - pickerIndex)
-                );
-                const scale = i === pickerIndex ? 1.0 : d === 1 ? 0.85 : 0.72;
-                const opacity = i === pickerIndex ? 1 : d === 1 ? 0.8 : 0.55;
-                return (
-                  <div
-                    key={item.url}
-                    onClick={() => {
-                      setPickerIndex(i);
-                      const chosen = item.url;
-                      if (chosen && chosen !== html2Url) setHtml2Url(chosen);
-                      // keep picker open for subsequent changes
-                    }}
-                    style={{
-                      width: "28vw",
-                      height: "40vh",
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      transform: `scale(${scale})`,
-                      transition: "transform 220ms ease, opacity 220ms ease",
-                      opacity,
-                      border: i === pickerIndex ? "1px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.18)",
-                      background: "rgba(255,255,255,0.04)",
-                      boxShadow: i === pickerIndex ? "0 12px 40px rgba(0,0,0,0.5)" : "none",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <img
-                      src={item.url}
-                      alt={item.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                        filter: "contrast(1.05) saturate(1.02)",
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {/* Left-fixed typo weather (no modal) */}
+      {step === 2 && (
+        <TypoWeather
+          visible
+          highlightIndex={weatherIdx}
+          timeSlot={getTimeSlotFromProgress(typeof remoteProgress === "number" ? remoteProgress : 0)}
+        />
       )}
       {/* Top glassy banner modal */}
       {bannerVisible && bannerText && (
