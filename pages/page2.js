@@ -419,6 +419,7 @@ export default function Page2() {
   useEffect(() => {
     const socket = io("/desktop", { path: "/api/socketio" });
     socketRef.current = socket;
+    const onReset = () => { try { router.push("/"); } catch {} };
     const onNext = () => {
       // emulate pressing EdgeNav Next
       if (stage === 2 && !arranged) { triggerArrange(); return; }
@@ -477,11 +478,13 @@ export default function Page2() {
     };
     const onMoodSelect = () => { setMoodLocked(true); moodLockedRef.current = true; };
     socket.on("moodSelect", onMoodSelect);
+    socket.on("app:reset", onReset);
     socket.on("next", onNext);
     socket.on("prev", onPrev);
     socket.on("progress", onProgress);
     return () => {
       socket.off("moodSelect", onMoodSelect);
+      socket.off("app:reset", onReset);
       socket.off("next", onNext);
       socket.off("prev", onPrev);
       socket.off("progress", onProgress);

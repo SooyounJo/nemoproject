@@ -60,6 +60,12 @@ export default function handler(req, res) {
       socket.on("landingProceed", (payload) => {
         io.emit("landingProceed", { ts: Date.now(), ...(payload || {}) });
       });
+      // Global reset: send all clients back to index
+      socket.on("app:reset", () => {
+        try {
+          io.emit("app:reset");
+        } catch {}
+      });
       socket.on("sel:reset", resetSelection);
       socket.on("sel:time", (v) => { selection.time = v; maybeEmitTv(); });
       socket.on("sel:mood", (v) => { selection.mood = v; maybeEmitTv(); });
@@ -138,6 +144,9 @@ export default function handler(req, res) {
       nsp.on("connection", (socket) => {
         socket.on("landingProceed", (payload) => {
           nsp.emit("landingProceed", { ts: Date.now(), ...(payload || {}) });
+        });
+        socket.on("app:reset", () => {
+          try { io.emit("app:reset"); } catch {}
         });
         socket.on("sel:reset", resetSelection);
         socket.on("sel:time", (v) => { selection.time = v; maybeEmitTv(); });

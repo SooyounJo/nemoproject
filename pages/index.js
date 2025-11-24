@@ -171,9 +171,17 @@ export default function Index() {
     const onProceed = () => {
       handleStart();
     };
+    const onReset = () => {
+      try {
+        // already on index; ensure state reset visually
+        setFading(false); setFxGather(false); setFxExplode(false);
+      } catch {}
+    };
     socket.on("landingProceed", onProceed);
+    socket.on("app:reset", onReset);
     return () => {
       socket.off("landingProceed", onProceed);
+      socket.off("app:reset", onReset);
       socket.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

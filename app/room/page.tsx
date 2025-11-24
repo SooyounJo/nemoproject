@@ -5,8 +5,10 @@ import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
 import TypoWeather from "@/app/components/room/TypoWeather";
 import { getTimeSlotFromProgress } from "@/lib/mood-select";
+import { useRouter } from "next/navigation";
 
 export default function FixedRoomPage() {
+  const router = useRouter();
   // 페이지 스크롤 잠금
   useEffect(() => {
     const html = document.documentElement;
@@ -85,6 +87,7 @@ export default function FixedRoomPage() {
   useEffect(() => {
     const socket = io("/desktop", { path: "/api/socketio" });
     socketRef.current = socket;
+    const onResetAll = () => { try { router.push("/"); } catch {} };
     const onNext = () => {
       if (mobileLockedRef.current) return;
       setStep((prev) => {
@@ -133,6 +136,7 @@ export default function FixedRoomPage() {
     socket.on("overlayIndex", (v: number) => {
       if (typeof v === "number") setRemoteOverlayIndex(Math.max(0, Math.min(13, Math.floor(v))));
     });
+    socket.on("app:reset", onResetAll);
     return () => {
       socket.off("next", onNext);
       socket.off("prev", onPrev);
@@ -140,6 +144,7 @@ export default function FixedRoomPage() {
       socket.off("progress", onProgress);
       socket.off("overlayOpacity", onOverlay);
       socket.off("overlayIndex");
+      socket.off("app:reset", onResetAll);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -173,12 +178,20 @@ export default function FixedRoomPage() {
           s.emit("enableScroll");
           setTimeout(() => s.disconnect(), 500);
         } catch {}
-      }, 1400);
+      }, 1700);
       return () => clearTimeout(t2);
-    }, 1000);
+    }, 1300);
     return () => clearTimeout(t1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Final step idle → return to index after 20s
+  useEffect(() => {
+    if (step !== 3) return;
+    const id = setTimeout(() => {
+      try { router.push("/"); } catch {}
+    }, 20000);
+    return () => clearTimeout(id);
+  }, [step, router]);
   useEffect(() => {
     // Apply the same placement through step 0, 1, and 2
     if (step === 0 || step === 1 || step === 2) {
@@ -306,18 +319,18 @@ export default function FixedRoomPage() {
       <Room
         initialCamera={camVeryCloseUp}
         cameraTarget={combinedTarget}
-        cameraLerp={1200}
+        cameraLerp={1800}
         controlsTarget={step >= 2 ? lookWindow : { x: 0, y: 0, z: 0 }}
-        controlsLerp={1200}
+        controlsLerp={1800}
         initialLight={lightPreset1}
         lightTarget={lightTarget}
         lightLerp={1200}
         pinIntensityTarget={step === 2 ? 6 : 20}
-        pinIntensityLerp={900}
+        pinIntensityLerp={1200}
         // After two Next presses (step === 2), apply a stronger yaw around Y (reverse direction)
         yawDegTarget={step >= 2 ? -48 : 0}
-        yawLerp={1200}
-        yawDelayMs={300}
+        yawLerp={1800}
+        yawDelayMs={500}
         yawTrigger={step}
         initialHtmlDist={pHtmlDist}
         initialHtmlOffX={pHtmlOffX}
@@ -340,7 +353,7 @@ export default function FixedRoomPage() {
         disableColorMapping={step === 0}
         initialFov={28}
         hideUI={true}
-        showPathSlider={step > 0}
+        showPathSlider={false}
         showHtmlSliders={false}
         staticView={true}
         screenGridImages={screenGridImages}

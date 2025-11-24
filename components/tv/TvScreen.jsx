@@ -170,6 +170,28 @@ export default function TvScreen() {
       }}
       onPointerDown={needsTap ? onEnableAudio : undefined}
     >
+      {/* animated gradient placeholder before image appears */}
+      {!display ? (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(1200px 800px at 20% 30%, rgba(80,120,255,0.30), transparent 70%), radial-gradient(1000px 900px at 80% 70%, rgba(255,150,120,0.22), transparent 65%), radial-gradient(900px 700px at 50% 50%, rgba(120,220,200,0.18), transparent 60%)",
+              animation: "gradDrift 16s ease-in-out infinite alternate",
+              filter: "blur(2px)",
+            }}
+          />
+          <style>{`
+            @keyframes gradDrift {
+              0% { transform: translate3d(0,0,0) scale(1.02); }
+              50% { transform: translate3d(0,-1%,0) scale(1.04); }
+              100% { transform: translate3d(0,0,0) scale(1.02); }
+            }
+          `}</style>
+        </>
+      ) : null}
       {display ? (
         <>
           {/* image with subtle wobble */}
