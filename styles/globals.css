@@ -6,6 +6,12 @@ html, body, #__next {
   height: 100%;
 }
 
+/* Remove default browser margin so 배경이 화면 끝까지 꽉 차 보이도록 */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
 html, body, button, input, select, textarea {
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue",

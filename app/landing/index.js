@@ -2,7 +2,6 @@
 
 import BackgroundVideo from "./ui/BackgroundVideo";
 import FrameTypos from "./ui/FrameTypos";
-import TypingNemo from "./ui/TypingNemo";
 import QRModal from "./ui/QRModal";
 import DebugNextButton from "./ui/DebugNextButton";
 import useLandingController from "./logic/useLandingController";
@@ -32,8 +31,19 @@ export default function LandingScreen() {
 			</Head>
 			<BackgroundVideo />
 			<FrameTypos gather={fxGather} explode={fxExplode} />
-			<TypingNemo />
-			<QRModal qrDataUrl={qrDataUrl} />
+			{/* QR center */}
+			<div
+				style={{
+					position: "absolute",
+					top: "30%",
+					left: "50%",
+					transform: "translate(-50%, -50%)",
+					zIndex: 3,
+					opacity: 1,
+				}}
+			>
+				<QRModal qrDataUrl={qrDataUrl} />
+			</div>
 			<DebugNextButton onClick={handleStart} />
 			{/* blackout */}
 			<div
