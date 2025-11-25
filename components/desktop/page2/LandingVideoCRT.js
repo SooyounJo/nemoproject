@@ -28,8 +28,9 @@ export default function LandingVideoCRT({ visible, videoRef, onEnded }) {
       <div
         style={{
           position: "relative",
-          width: "90vw",
-          height: "90vh",
+          // 이전 큰 사이즈에서 조금만 줄인 정도의 고정 크기
+          width: 280,
+          height: 280,
           background: "transparent",
         }}
       >
@@ -43,8 +44,6 @@ export default function LandingVideoCRT({ visible, videoRef, onEnded }) {
             height: "100%",
             objectFit: "contain",
             filter: "contrast(1.06) saturate(1.02)",
-            transform: "scale(0.5)",
-            transformOrigin: "center center",
             animation: "imgEaseInHoldOut 3600ms linear forwards",
             display: "block",
           }}

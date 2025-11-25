@@ -151,7 +151,8 @@ export default function Index() {
           left: "50%",
           transform: "translate(-50%, -50%)",
           zIndex: 3,
-          opacity: 1,
+          opacity: fading ? 0 : 1,
+          transition: "opacity 900ms ease",
         }}
       >
         {qrDataUrl ? (
