@@ -109,6 +109,12 @@ export default function handler(req, res) {
           io.of("/mobile").emit("finalImage", u);
         } catch {}
       });
+      // TV clear: return TV to default blank state
+      socket.on("tvClear", () => {
+        try {
+          io.of("/tv").emit("tvClear");
+        } catch {}
+      });
       // Synchronized scroll enable/disable and selection lock for mood step
       socket.on("moodScroll:enable", () => io.emit("moodScroll:enable"));
       socket.on("moodScroll:disable", () => io.emit("moodScroll:disable"));
@@ -143,7 +149,11 @@ export default function handler(req, res) {
     const bindNamespace = (nsp) => {
       nsp.on("connection", (socket) => {
         socket.on("landingProceed", (payload) => {
-          nsp.emit("landingProceed", { ts: Date.now(), ...(payload || {}) });
+          const msg = { ts: Date.now(), ...(payload || {}) };
+          // emit within the namespace
+          nsp.emit("landingProceed", msg);
+          // and broadcast to root/all so desktop index (root listener) also receives
+          try { io.emit("landingProceed", msg); } catch {}
         });
         socket.on("app:reset", () => {
           try { io.emit("app:reset"); } catch {}
@@ -180,6 +190,9 @@ export default function handler(req, res) {
             io.of("/tv").emit("tvShow", u);
             io.of("/mobile").emit("finalImage", u);
           } catch {}
+        });
+        socket.on("tvClear", () => {
+          try { io.of("/tv").emit("tvClear"); } catch {}
         });
         // Namespaced versions as well
         socket.on("moodScroll:enable", () => nsp.emit("moodScroll:enable"));

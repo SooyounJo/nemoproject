@@ -13,9 +13,9 @@ export default function useMobileSocket() {
 		sockRef.current = s;
 		// Notify desktop landing to auto proceed when mobile connects (QR flow)
 		try {
-			const root = io({ path: "/api/socketio" });
-			root.emit("landingProceed");
-			setTimeout(() => root.disconnect(), 500);
+			s.on("connect", () => {
+				try { s.emit("landingProceed"); } catch {}
+			});
 		} catch {}
 
 		function onProgress(e) {

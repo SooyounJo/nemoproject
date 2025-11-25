@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTvSocket } from "../../utils/socket/client";
-import ThreeBackground from "../../app/components/ThreeBackground";
 
 export default function TvScreen() {
   const [url, setUrl] = useState("");
@@ -116,6 +115,22 @@ export default function TvScreen() {
     try {
       s.emit("tvHello", { ts: Date.now() });
     } catch {}
+    // clear handler: return to black and resume main music
+    try {
+      s.on("tvClear", () => {
+        setFade(false);
+        setUrl("");
+        const main = mainAudioRef.current;
+        if (fxAudioRef.current) {
+          try { fxAudioRef.current.pause(); } catch {}
+          fxAudioRef.current = null;
+        }
+        if (main) {
+          main.play().catch(() => {});
+          rampVolume(main, 0.5, 800);
+        }
+      });
+    } catch {}
     // Fallback: also accept imageSelected only if it points to /genimg/*
     try {
       s.on("imageSelected", (u) => {
@@ -172,11 +187,7 @@ export default function TvScreen() {
       onPointerDown={needsTap ? onEnableAudio : undefined}
     >
       {/* animated gradient placeholder before image appears */}
-      {!display ? (
-        <div style={{ position: "absolute", inset: 0, opacity: 0.9 }}>
-          <ThreeBackground />
-        </div>
-      ) : null}
+      {/* No placeholder background; keep pure black until image arrives */}
       {display ? (
         <>
           {/* image with subtle wobble */}

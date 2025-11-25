@@ -71,7 +71,7 @@ function TypingNemo() {
           display: "flex",
           alignItems: "center",
           gap: 8,
-          fontWeight: 800,
+          fontWeight: 400,
           letterSpacing: 10,
           fontSize: 68,
           textTransform: "uppercase",

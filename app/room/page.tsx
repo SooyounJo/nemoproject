@@ -184,13 +184,18 @@ export default function FixedRoomPage() {
     return () => clearTimeout(t1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Final step idle → return to index after 20s
+  // Final step idle → broadcast reset and return to index after 10s
   useEffect(() => {
     if (step !== 3) return;
     const id = setTimeout(() => {
+      try {
+        // notify all clients to reset and clear TV
+        socketRef.current?.emit("tvClear");
+        socketRef.current?.emit("app:reset");
+      } catch {}
       try { router.push("/"); } catch {}
-    }, 20000);
-    return () => clearTimeout(id);
+    }, 10000);
+    return () => { clearTimeout(id); };
   }, [step, router]);
   useEffect(() => {
     // Apply the same placement through step 0, 1, and 2
