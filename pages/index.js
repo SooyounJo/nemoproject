@@ -15,6 +15,7 @@ export default function Index() {
   const [fxExplode, setFxExplode] = useState(false);
   const mainAudioRef = useRef(null);
   const [needsTap, setNeedsTap] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     // generate QR for /mobile on same host (socket path shared)
@@ -45,9 +46,18 @@ export default function Index() {
       a.loop = true;
       a.volume = 0;
       mainAudioRef.current = a;
-      a.play().then(() => {
-        rampVolume(a, 0.5, 1200);
-      }).catch(() => setNeedsTap(true));
+      // respect saved mute
+      let wantMute = false;
+      try { wantMute = localStorage.getItem("nemo_audio_muted") === "1"; } catch {}
+      setMuted(wantMute);
+      if (wantMute) {
+        // don't start playback if muted
+        a.pause();
+      } else {
+        a.play().then(() => {
+          rampVolume(a, 0.5, 1200);
+        }).catch(() => setNeedsTap(true));
+      }
     } catch {}
   }, []);
 
@@ -59,6 +69,26 @@ export default function Index() {
       if (a.paused) a.play().catch(() => {});
       rampVolume(a, 0.5, 800);
       setNeedsTap(false);
+    } catch {}
+  };
+
+  const toggleMute = () => {
+    try {
+      const a = mainAudioRef.current;
+      if (!a) return;
+      if (muted) {
+        // unmute and resume
+        if (a.paused) a.play().catch(() => {});
+        rampVolume(a, 0.5, 300);
+        setMuted(false);
+        try { localStorage.setItem("nemo_audio_muted", "0"); } catch {}
+      } else {
+        // mute
+        rampVolume(a, 0.0, 200);
+        setTimeout(() => { try { a.pause(); } catch {} }, 220);
+        setMuted(true);
+        try { localStorage.setItem("nemo_audio_muted", "1"); } catch {}
+      }
     } catch {}
   };
 
@@ -182,6 +212,20 @@ export default function Index() {
           backdropFilter: "blur(10px) saturate(1.02)",
         }}
       >
+        <button
+          onClick={toggleMute}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: muted ? "rgba(120,25,25,0.35)" : "rgba(17,19,24,0.35)",
+            color: "#e5e7eb",
+            cursor: "pointer",
+          }}
+          title={muted ? "음악 켜기" : "음악 끄기"}
+        >
+          {muted ? "음악 켜기" : "음악 끄기"}
+        </button>
         <button
           onClick={handleStart}
           style={{
