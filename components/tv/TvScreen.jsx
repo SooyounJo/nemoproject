@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTvSocket } from "../../utils/socket/client";
+import ThreeBackground from "../../app/components/common/ThreeBackground";
 
 export default function TvScreen() {
   const [url, setUrl] = useState("");
@@ -194,26 +195,19 @@ export default function TvScreen() {
       }}
       onPointerDown={needsTap ? onEnableAudio : undefined}
     >
-      {/* animated gradient placeholder before image appears */}
-      {!display && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "radial-gradient(1200px 1200px at 20% 30%, rgba(255,170,120,0.35), transparent), radial-gradient(1000px 1000px at 80% 70%, rgba(90,140,255,0.35), transparent), linear-gradient(135deg, #0b0d12 0%, #12151c 100%)",
-            animation: "bgPulse 10s ease-in-out infinite",
-            transition: "opacity 800ms ease",
-            opacity: 1,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-      <style>{`
-        @keyframes bgPulse {
-          0%,100% { filter: saturate(1) brightness(1); }
-          50% { filter: saturate(1.08) brightness(1.06); }
-        }
-      `}</style>
+      {/* exact mobile gradient background (Three.js shader), fades out when image appears */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
+          opacity: display ? 0 : 1,
+          transition: "opacity 800ms ease",
+          pointerEvents: "none",
+        }}
+      >
+        <ThreeBackground />
+      </div>
       {display ? (
         <>
           {/* image with subtle wobble */}
