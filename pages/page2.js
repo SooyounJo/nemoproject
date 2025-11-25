@@ -34,6 +34,8 @@ export default function Page2() {
   const autoTimerRef = useRef(null);
   const promptTimerRef = useRef(null);
   const questionTimerRef = useRef(null);
+  const navTimerRef = useRef(null);
+  const isResetRef = useRef(false);
   const [showQuestion, setShowQuestion] = useState(false);
   const [arranged, setArranged] = useState(false);
   const [arranging, setArranging] = useState(false);
@@ -74,6 +76,7 @@ export default function Page2() {
     if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
     if (promptTimerRef.current) { clearTimeout(promptTimerRef.current); promptTimerRef.current = null; }
     if (questionTimerRef.current) { clearTimeout(questionTimerRef.current); questionTimerRef.current = null; }
+    if (navTimerRef.current) { clearTimeout(navTimerRef.current); navTimerRef.current = null; }
   }
   const stopClarityAnim = useCallback(() => {
     if (clarityRafRef.current) { cancelAnimationFrame(clarityRafRef.current); clarityRafRef.current = null; }
@@ -419,7 +422,16 @@ export default function Page2() {
   useEffect(() => {
     const socket = io("/desktop", { path: "/api/socketio" });
     socketRef.current = socket;
-    const onReset = () => { try { router.push("/"); } catch {} };
+    const onReset = () => {
+      try {
+        isResetRef.current = true;
+        clearTimers();
+        setClosing(false);
+        stopClarityAnim();
+        stopCamera();
+        router.push("/");
+      } catch {}
+    };
     const onNext = () => {
       // emulate pressing EdgeNav Next
       if (stage === 2 && !arranged) { triggerArrange(); return; }
@@ -447,7 +459,7 @@ export default function Page2() {
           if (moodNow) socketRef.current?.emit("sel:mood", moodNow);
         } catch {}
         setClosing(true);
-        setTimeout(() => router.push("/room"), 700);
+        navTimerRef.current = setTimeout(() => { if (!isResetRef.current) router.push("/room"); }, 700);
         return;
       }
       goToStage(Math.min(2, stage + 1));
@@ -510,7 +522,8 @@ export default function Page2() {
         if (p && typeof p.catch === "function") p.catch(() => {});
       }
     }, 1000);
-    return () => { clearTimeout(t); clearTimers(); };
+    isResetRef.current = false;
+    return () => { clearTimeout(t); clearTimers(); isResetRef.current = false; };
   }, []);
   return (
     <div
@@ -820,7 +833,7 @@ export default function Page2() {
               localStorage.setItem("nemo_grid_images", JSON.stringify(grid));
             } catch {}
             setClosing(true);
-            setTimeout(() => router.push("/room"), 700);
+            navTimerRef.current = setTimeout(() => { if (!isResetRef.current) router.push("/room"); }, 700);
             return;
           }
           goToStage(Math.min(2, stage + 1));

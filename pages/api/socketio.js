@@ -60,10 +60,17 @@ export default function handler(req, res) {
       socket.on("landingProceed", (payload) => {
         io.emit("landingProceed", { ts: Date.now(), ...(payload || {}) });
       });
-      // Global reset: send all clients back to index
+      // Global reset: send all clients back to index (broadcast to all namespaces)
       socket.on("app:reset", () => {
         try {
           io.emit("app:reset");
+          io.of("/desktop").emit("app:reset");
+          io.of("/mobile").emit("app:reset");
+          io.of("/tv").emit("app:reset");
+          io.of("/sbm").emit("app:reset");
+          // also clear TV immediately
+          io.of("/tv").emit("tvClear");
+          resetSelection();
         } catch {}
       });
       socket.on("sel:reset", resetSelection);
@@ -156,7 +163,15 @@ export default function handler(req, res) {
           try { io.emit("landingProceed", msg); } catch {}
         });
         socket.on("app:reset", () => {
-          try { io.emit("app:reset"); } catch {}
+          try {
+            io.emit("app:reset");
+            io.of("/desktop").emit("app:reset");
+            io.of("/mobile").emit("app:reset");
+            io.of("/tv").emit("app:reset");
+            io.of("/sbm").emit("app:reset");
+            io.of("/tv").emit("tvClear");
+            resetSelection();
+          } catch {}
         });
         socket.on("sel:reset", resetSelection);
         socket.on("sel:time", (v) => { selection.time = v; maybeEmitTv(); });

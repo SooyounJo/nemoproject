@@ -92,30 +92,24 @@ export default function FixedRoomPage() {
       if (mobileLockedRef.current) return;
       setStep((prev) => {
         if (prev === 2) {
-          // Finalize weather selection: fade out and ask to look at the window.
           setLookMsg(true);
-          // Emit weather selection to server aggregator
           try {
             const weatherKeys = ["clear","cloudy","rainy","snowy","foggy","stormy"];
             const w = weatherKeys[Math.max(0, Math.min(5, weatherIdx))] as any;
-            const s = io("/desktop", { path: "/api/socketio" });
+            const s = io("/desktop", { path: "/api/socketio", transports: ["websocket"] });
             s.emit("sel:weather", w);
             setTimeout(() => s.disconnect(), 400);
           } catch {}
-          // TV 노출은 페이지2 최종 확정 시점에서만 수행 (room에서는 송신하지 않음)
           return 3;
         }
         return Math.min(steps.length - 1, prev + 1);
       });
     };
-    const onPrev = () => {
-      if (mobileLockedRef.current) return;
-      setStep((s) => Math.max(0, s - 1));
-    };
     const onSetStep = (v: number) => {
       if (mobileLockedRef.current) return;
       const nv = Math.max(0, Math.min(steps.length - 1, Math.floor(v)));
-      setStep(nv);
+      // forward-only on desktop: do not allow decreasing step
+      setStep((prev) => Math.max(prev, nv));
     };
     const onProgress = (v: number) => {
       if (mobileLockedRef.current) return;
@@ -129,7 +123,6 @@ export default function FixedRoomPage() {
       if (typeof v === "number") setRemoteOverlay(Math.max(0, Math.min(1, v)));
     };
     socket.on("next", onNext);
-    socket.on("prev", onPrev);
     socket.on("setStep", onSetStep);
     socket.on("progress", onProgress);
     socket.on("overlayOpacity", onOverlay);
@@ -139,7 +132,6 @@ export default function FixedRoomPage() {
     socket.on("app:reset", onResetAll);
     return () => {
       socket.off("next", onNext);
-      socket.off("prev", onPrev);
       socket.off("setStep", onSetStep);
       socket.off("progress", onProgress);
       socket.off("overlayOpacity", onOverlay);
@@ -306,6 +298,7 @@ export default function FixedRoomPage() {
     const p = typeof remoteProgress === "number" ? Math.max(0, Math.min(1, remoteProgress)) : 0;
     return Math.min(5, Math.floor(p * 6));
   }, [remoteProgress]);
+  const isWeatherChosen = typeof remoteProgress === "number";
 
   // Freeze desktop screen 2x2 images to the user's last selection (do NOT follow light path)
   const [screenGridImages, setScreenGridImages] = useState<string[] | undefined>(undefined);
@@ -398,18 +391,29 @@ export default function FixedRoomPage() {
       )}
       {/* Bottom-right glass nav */}
       <div style={{ position: "fixed", right: 16, bottom: 16, display: "flex", gap: 8, zIndex: 40, padding: "6px 8px", borderRadius: 12, background: "rgba(17,19,24,0.35)", border: "1px solid rgba(255,255,255,0.16)", backdropFilter: "blur(10px) saturate(1.02)" }}>
-        {step > 0 && (
-          <button
-            onClick={() => setStep(Math.max(0, step - 1))}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(17,19,24,0.35)", color: "#e5e7eb", cursor: "pointer" }}
-          >
-            이전
-          </button>
-        )}
         {step < steps.length - 1 && (
           <button
-            onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(17,19,24,0.35)", color: "#e5e7eb", cursor: "pointer" }}
+            onClick={() => {
+              // forward-only local next; at step 2 it will emit sel:weather then advance
+              if (mobileLockedRef.current) return;
+              setStep((prev) => {
+                if (prev === 2) {
+                  if (!isWeatherChosen) return prev; // require a choice
+                  try {
+                    const weatherKeys = ["clear","cloudy","rainy","snowy","foggy","stormy"];
+                    const w = weatherKeys[Math.max(0, Math.min(5, weatherIdx))] as any;
+                    const s = io("/desktop", { path: "/api/socketio", transports: ["websocket"] });
+                    s.emit("sel:weather", w);
+                    setTimeout(() => s.disconnect(), 400);
+                  } catch {}
+                  setLookMsg(true);
+                  return 3;
+                }
+                return Math.min(steps.length - 1, prev + 1);
+              });
+            }}
+            disabled={step === 2 && !isWeatherChosen}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(17,19,24,0.35)", color: step === 2 && !isWeatherChosen ? "rgba(229,231,235,0.5)" : "#e5e7eb", cursor: step === 2 && !isWeatherChosen ? "not-allowed" : "pointer", opacity: step === 2 && !isWeatherChosen ? 0.6 : 1 }}
           >
             다음
           </button>
