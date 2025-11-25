@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTvSocket } from "../../utils/socket/client";
+import ThreeBackground from "@/app/components/ThreeBackground";
 
 export default function TvScreen() {
   const [url, setUrl] = useState("");
@@ -186,8 +187,10 @@ export default function TvScreen() {
       }}
       onPointerDown={needsTap ? onEnableAudio : undefined}
     >
-      {/* animated gradient placeholder before image appears */}
-      {/* No placeholder background; keep pure black until image arrives */}
+      {/* Mobile-style Three.js background until image appears */}
+      <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", opacity: display ? 0 : 1, transition: "opacity 900ms ease" }}>
+        <ThreeBackground />
+      </div>
       {display ? (
         <>
           {/* image with subtle wobble */}
@@ -227,7 +230,7 @@ export default function TvScreen() {
               }}/>
             ))}
           </div>
-          {/* CSS keyframes */}
+          {/* CSS keyframes for image/particles */}
           <style>{`
             @keyframes floatUp {
               0% { transform: translateY(0px); opacity: 0; }

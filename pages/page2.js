@@ -111,50 +111,11 @@ export default function Page2() {
     } catch {}
   }, []);
   const startCamera = useCallback(async () => {
+    // Camera usage disabled by design: do not request permissions
     try {
-      // choose 4 smallest windows by area to attach camera
-      const areas = windows.map((w, idx) => ({ idx, area: (w.widthVw || parseFloat(w.width)) * (w.heightVh || parseFloat(w.height)) }));
-      areas.sort((a, b) => a.area - b.area);
-      const picks = areas.slice(0, 4).map((e) => e.idx);
-      setCamTargets(picks);
-      // init stream
-      const stream = await navigator.mediaDevices?.getUserMedia?.({ video: { width: 640, height: 480 }, audio: false });
-      if (!stream) return;
-      camStreamRef.current = stream;
-      if (!camVideoRef.current) {
-        camVideoRef.current = document.createElement("video");
-        camVideoRef.current.setAttribute("playsinline", "");
-        camVideoRef.current.muted = true;
-        camVideoRef.current.autoplay = true;
-        camVideoRef.current.style.display = "none";
-        document.body.appendChild(camVideoRef.current);
-      }
-      camVideoRef.current.srcObject = stream;
-      await camVideoRef.current.play().catch(() => {});
-      if (!camCanvasRef.current) {
-        camCanvasRef.current = document.createElement("canvas");
-        camCanvasRef.current.width = 640;
-        camCanvasRef.current.height = 480;
-      }
-      const ctx = camCanvasRef.current.getContext("2d");
-      camCaptureTimerRef.current = setInterval(() => {
-        try {
-          const vw = camVideoRef.current.videoWidth || 640;
-          const vh = camVideoRef.current.videoHeight || 480;
-          camCanvasRef.current.width = vw;
-          camCanvasRef.current.height = vh;
-          ctx.drawImage(camVideoRef.current, 0, 0, vw, vh);
-          const url = camCanvasRef.current.toDataURL("image/jpeg", 0.72);
-          setCamImages((prev) => {
-            const next = [...prev];
-            if (next.length < 4) next.push(url); else next[(Date.now() >> 12) % 4] = url;
-            return next;
-          });
-        } catch {}
-      }, 900);
-    } catch {
-      // ignore if denied
-    }
+      setCamTargets([]);
+      setCamImages([]);
+    } catch {}
   }, []);
   const goToStage = useCallback((s) => {
     clearTimers();
@@ -366,6 +327,10 @@ export default function Page2() {
   const socketRef = useRef(null);
   const moodLockedRef = useRef(false);
   const [selectedTime, setSelectedTime] = useState("day");
+  // track wrap-around cycles for infinite scroll
+  const prevProgRef = useRef(null);
+  const cycleRef = useRef(0);
+  const lastVirtualRef = useRef(0);
   const triggerArrange = useCallback(() => {
     // Begin smooth transition into a 2x2 grid of 4 survivors
     setArranging(true);
@@ -469,14 +434,28 @@ export default function Page2() {
       else goToStage(Math.max(0, stage - 1));
     };
     const onProgress = (v) => {
-      const value = typeof v === "number" ? v : 0;
-      // Map progress [0..1] → folderIndex 1..9
+      // clamp incoming progress to [0,1]
+      const curr = Math.max(0, Math.min(1, typeof v === "number" ? v : 0));
+      const prev = prevProgRef.current;
+      // detect wrap-around at edges to create virtual infinite scroll
+      if (prev !== null) {
+        // forward wrap: 0.95 -> 0.05
+        if (prev > 0.8 && curr < 0.2) cycleRef.current += 1;
+        // backward wrap: 0.05 -> 0.95
+        else if (prev < 0.2 && curr > 0.8) cycleRef.current -= 1;
+      }
+      prevProgRef.current = curr;
+      const virtual = cycleRef.current + curr;
+      lastVirtualRef.current = virtual;
+      // fractional position [0,1) irrespective of cycles
+      const frac = ((virtual % 1) + 1) % 1;
+      // Map frac [0..1) → folderIndex 1..9 (wraps seamlessly)
       if (!moodLockedRef.current) {
-        const idx = Math.max(1, Math.min(9, Math.floor(value * 9) + 1));
+        const idx = Math.max(1, Math.min(9, Math.floor(frac * 9) + 1));
         setFolderIndex(idx);
       }
-      // derive time slot from progress and emit tentative selection
-      const t = getTimeSlotFromProgress(value);
+      // derive time slot from fractional position and emit tentative selection
+      const t = getTimeSlotFromProgress(frac);
       setSelectedTime(t);
       try { socketRef.current?.emit("sel:time", t); } catch {}
       // Ensure we are on windows stage and arranged 2x2 to visualize mood

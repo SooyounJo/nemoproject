@@ -52,6 +52,9 @@ export default function FixedRoomPage() {
   const [step, setStep] = useState(0);
   const socketRef = useRef<any>(null);
   const [remoteProgress, setRemoteProgress] = useState<number | null>(null);
+  // infinite wrap-around support for weather scroll (step 2)
+  const prevProgRef = useRef<number | null>(null);
+  const cycleRef = useRef<number>(0);
   const [remoteOverlay, setRemoteOverlay] = useState<number | null>(null);
   const [remoteOverlayIndex, setRemoteOverlayIndex] = useState<number | null>(null);
   const [savedLightPath, setSavedLightPath] = useState<number | null>(null);
@@ -114,8 +117,18 @@ export default function FixedRoomPage() {
     const onProgress = (v: number) => {
       if (mobileLockedRef.current) return;
       if (typeof v === "number") {
-        const clamped = Math.max(0, Math.min(1, v));
-        setRemoteProgress(clamped);
+        const curr = Math.max(0, Math.min(1, v));
+        const prev = prevProgRef.current;
+        if (prev !== null) {
+          // forward wrap 0.95 -> 0.05
+          if (prev > 0.8 && curr < 0.2) cycleRef.current += 1;
+          // backward wrap 0.05 -> 0.95
+          else if (prev < 0.2 && curr > 0.8) cycleRef.current -= 1;
+        }
+        prevProgRef.current = curr;
+        const virtual = cycleRef.current + curr;
+        const frac = ((virtual % 1) + 1) % 1; // [0,1)
+        setRemoteProgress(frac);
         // In room, progress should not change steps. Navigation via next/prev only.
       }
     };
