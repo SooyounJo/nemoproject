@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTvSocket } from "../../utils/socket/client";
-import ThreeBackground from "@/app/components/ThreeBackground";
 
 export default function TvScreen() {
   const [url, setUrl] = useState("");
   const [fade, setFade] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
+  const [needsTap, setNeedsTap] = useState(false);
   const mainAudioRef = useRef(null);
   const fxAudioRef = useRef(null);
   const fadeTimerRef = useRef(null);
@@ -26,14 +26,25 @@ export default function TvScreen() {
       a.loop = true;
       a.volume = 0;
       mainAudioRef.current = a;
-      const start = () => {
-        a.play().then(() => {
-          setAudioReady(true);
-          rampVolume(a, 0.5, 1200);
-        }).catch(() => {});
+      a.play().then(() => {
+        setAudioReady(true);
+        rampVolume(a, 0.5, 1200);
+      }).catch(() => {
+        // Autoplay blocked: silently wait for first pointer to enable without visible UI
+        setNeedsTap(true);
+      });
+      const onFirstPointer = () => {
+        if (!needsTap) return;
+        try {
+          a.play().then(() => {
+            setAudioReady(true);
+            rampVolume(a, 0.5, 800);
+            setNeedsTap(false);
+          }).catch(() => {});
+        } catch {}
       };
-      // attempt immediate; browsers may block until interaction
-      start();
+      window.addEventListener("pointerdown", onFirstPointer, { once: true });
+      return () => window.removeEventListener("pointerdown", onFirstPointer);
     } catch {}
   }, []);
 
@@ -176,16 +187,33 @@ export default function TvScreen() {
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "#000",
+        background: "#000",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
+      onPointerDown={needsTap ? onEnableAudio : undefined}
     >
-      {/* Mobile-style Three.js background until image appears */}
-      <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", opacity: display ? 0 : 1, transition: "opacity 900ms ease" }}>
-        <ThreeBackground />
-      </div>
+      {/* animated gradient placeholder before image appears */}
+      {!display && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "radial-gradient(1200px 1200px at 20% 30%, rgba(255,170,120,0.35), transparent), radial-gradient(1000px 1000px at 80% 70%, rgba(90,140,255,0.35), transparent), linear-gradient(135deg, #0b0d12 0%, #12151c 100%)",
+            animation: "bgPulse 10s ease-in-out infinite",
+            transition: "opacity 800ms ease",
+            opacity: 1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      <style>{`
+        @keyframes bgPulse {
+          0%,100% { filter: saturate(1) brightness(1); }
+          50% { filter: saturate(1.08) brightness(1.06); }
+        }
+      `}</style>
       {display ? (
         <>
           {/* image with subtle wobble */}
@@ -225,7 +253,7 @@ export default function TvScreen() {
               }}/>
             ))}
           </div>
-          {/* CSS keyframes for image/particles */}
+          {/* CSS keyframes */}
           <style>{`
             @keyframes floatUp {
               0% { transform: translateY(0px); opacity: 0; }
@@ -241,6 +269,7 @@ export default function TvScreen() {
           `}</style>
         </>
       ) : null}
+      {/* No visible sound activation UI; pointer enables silently */}
     </div>
   );
 }

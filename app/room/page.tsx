@@ -52,9 +52,6 @@ export default function FixedRoomPage() {
   const [step, setStep] = useState(0);
   const socketRef = useRef<any>(null);
   const [remoteProgress, setRemoteProgress] = useState<number | null>(null);
-  // infinite wrap-around support for weather scroll (step 2)
-  const prevProgRef = useRef<number | null>(null);
-  const cycleRef = useRef<number>(0);
   const [remoteOverlay, setRemoteOverlay] = useState<number | null>(null);
   const [remoteOverlayIndex, setRemoteOverlayIndex] = useState<number | null>(null);
   const [savedLightPath, setSavedLightPath] = useState<number | null>(null);
@@ -117,18 +114,8 @@ export default function FixedRoomPage() {
     const onProgress = (v: number) => {
       if (mobileLockedRef.current) return;
       if (typeof v === "number") {
-        const curr = Math.max(0, Math.min(1, v));
-        const prev = prevProgRef.current;
-        if (prev !== null) {
-          // forward wrap 0.95 -> 0.05
-          if (prev > 0.8 && curr < 0.2) cycleRef.current += 1;
-          // backward wrap 0.05 -> 0.95
-          else if (prev < 0.2 && curr > 0.8) cycleRef.current -= 1;
-        }
-        prevProgRef.current = curr;
-        const virtual = cycleRef.current + curr;
-        const frac = ((virtual % 1) + 1) % 1; // [0,1)
-        setRemoteProgress(frac);
+        const clamped = Math.max(0, Math.min(1, v));
+        setRemoteProgress(clamped);
         // In room, progress should not change steps. Navigation via next/prev only.
       }
     };
@@ -173,18 +160,10 @@ export default function FixedRoomPage() {
       return () => clearTimeout(t);
     }
   }, [step]);
-  // On entering room: auto-advance once, then enable mobile scroll after the motion
+  // On entering room: auto-advance once (do not enable infinite scroll in room)
   useEffect(() => {
     const t1 = setTimeout(() => {
       setStep((s) => Math.min(steps.length - 1, s + 1));
-      const t2 = setTimeout(() => {
-        try {
-          const s = io("/mobile", { path: "/api/socketio" });
-          s.emit("enableScroll");
-          setTimeout(() => s.disconnect(), 500);
-        } catch {}
-      }, 1700);
-      return () => clearTimeout(t2);
     }, 1300);
     return () => clearTimeout(t1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,7 +315,7 @@ export default function FixedRoomPage() {
         initialLight={lightPreset1}
         lightTarget={lightTarget}
         lightLerp={1200}
-        pinIntensityTarget={step === 2 ? 6 : 20}
+        pinIntensityTarget={step === 2 ? 26 : 10}
         pinIntensityLerp={1200}
         // After two Next presses (step === 2), apply a stronger yaw around Y (reverse direction)
         yawDegTarget={step >= 2 ? -48 : 0}

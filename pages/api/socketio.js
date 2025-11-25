@@ -45,6 +45,8 @@ export default function handler(req, res) {
     // Accumulate 3 selections; emit when complete
     const selection = { time: null, mood: null, weather: null };
     const resetSelection = () => { selection.time = null; selection.mood = null; selection.weather = null; };
+    // Track active mobile controller
+    let activeMobileId = null;
     const maybeEmitTv = () => {
       if (selection.time && selection.mood && selection.weather) {
         let url = buildUrlForSelection(selection.time, selection.mood, selection.weather);
@@ -59,6 +61,18 @@ export default function handler(req, res) {
       // Landing proceed trigger (e.g., mobile connected/scanned)
       socket.on("landingProceed", (payload) => {
         io.emit("landingProceed", { ts: Date.now(), ...(payload || {}) });
+      });
+      // Sync: when mobile reloads, reset all clients to keep tempo
+      socket.on("sync:reload", () => {
+        try {
+          io.emit("app:reset");
+          io.of("/desktop").emit("app:reset");
+          io.of("/mobile").emit("app:reset");
+          io.of("/tv").emit("app:reset");
+          io.of("/sbm").emit("app:reset");
+          io.of("/tv").emit("tvClear");
+          resetSelection();
+        } catch {}
       });
       // Global reset: send all clients back to index (broadcast to all namespaces)
       socket.on("app:reset", () => {
@@ -155,6 +169,28 @@ export default function handler(req, res) {
     // Namespaced channels to avoid cross-talk between mobile and desktop
     const bindNamespace = (nsp) => {
       nsp.on("connection", (socket) => {
+        // Mobile ownership + takeover
+        if (nsp.name === "/mobile") {
+          try {
+            if (activeMobileId && activeMobileId !== socket.id) {
+              // revoke previous owner
+              try { nsp.to(activeMobileId).emit("control:revoked"); } catch {}
+            }
+            activeMobileId = socket.id;
+            socket.emit("control:granted");
+          } catch {}
+          socket.on("disconnect", () => {
+            if (activeMobileId === socket.id) activeMobileId = null;
+          });
+          // Mobile reload sync
+          socket.on("sync:reload", () => {
+            try {
+              io.emit("app:reset");
+              io.of("/tv").emit("tvClear");
+              resetSelection();
+            } catch {}
+          });
+        }
         socket.on("landingProceed", (payload) => {
           const msg = { ts: Date.now(), ...(payload || {}) };
           // emit within the namespace
@@ -177,10 +213,22 @@ export default function handler(req, res) {
         socket.on("sel:time", (v) => { selection.time = v; maybeEmitTv(); });
         socket.on("sel:mood", (v) => { selection.mood = v; maybeEmitTv(); });
         socket.on("sel:weather", (v) => { selection.weather = v; maybeEmitTv(); });
-        socket.on("next", () => nsp.emit("next"));
-        socket.on("prev", () => nsp.emit("prev"));
-        socket.on("progress", (value) => nsp.emit("progress", typeof value === "number" ? value : 0));
-        socket.on("setStep", (value) => nsp.emit("setStep", typeof value === "number" ? value : 0));
+        socket.on("next", () => {
+          if (nsp.name === "/mobile" && activeMobileId && socket.id !== activeMobileId) return;
+          nsp.emit("next");
+        });
+        socket.on("prev", () => {
+          if (nsp.name === "/mobile" && activeMobileId && socket.id !== activeMobileId) return;
+          nsp.emit("prev");
+        });
+        socket.on("progress", (value) => {
+          if (nsp.name === "/mobile" && activeMobileId && socket.id !== activeMobileId) return;
+          nsp.emit("progress", typeof value === "number" ? value : 0);
+        });
+        socket.on("setStep", (value) => {
+          if (nsp.name === "/mobile" && activeMobileId && socket.id !== activeMobileId) return;
+          nsp.emit("setStep", typeof value === "number" ? value : 0);
+        });
         socket.on("overlayOpacity", (value) =>
           nsp.emit("overlayOpacity", typeof value === "number" ? value : 0)
         );

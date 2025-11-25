@@ -14,6 +14,7 @@ export default function Index() {
   const [fxGather, setFxGather] = useState(false);
   const [fxExplode, setFxExplode] = useState(false);
   const mainAudioRef = useRef(null);
+  const [needsTap, setNeedsTap] = useState(false);
 
   useEffect(() => {
     // generate QR for /mobile on same host (socket path shared)
@@ -46,9 +47,20 @@ export default function Index() {
       mainAudioRef.current = a;
       a.play().then(() => {
         rampVolume(a, 0.5, 1200);
-      }).catch(() => {});
+      }).catch(() => setNeedsTap(true));
     } catch {}
   }, []);
+
+  const enableAudio = () => {
+    try {
+      const a = mainAudioRef.current || new Audio("/mmusic/main.mp3");
+      mainAudioRef.current = a;
+      a.loop = true;
+      if (a.paused) a.play().catch(() => {});
+      rampVolume(a, 0.5, 800);
+      setNeedsTap(false);
+    } catch {}
+  };
 
   useEffect(() => {
     // Listen for mobile connection to auto proceed
@@ -90,6 +102,7 @@ export default function Index() {
         background: "#0b0d12",
         overflow: "hidden",
       }}
+      onPointerDown={needsTap ? enableAudio : undefined}
     >
       <Head>
         <link

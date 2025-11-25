@@ -60,7 +60,7 @@ export default function MobileScreen() {
 			<TopQuestion />
 			<SelectionFlashOverlay />
 			<FinalScreen />
-			{/* Leva gradient editor removed for production */}
+			{/* Color tuning UI removed for production */}
 		</main>
 	);
 }

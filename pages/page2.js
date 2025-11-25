@@ -110,8 +110,8 @@ export default function Page2() {
       setCamImages([]);
     } catch {}
   }, []);
-  const startCamera = useCallback(async () => {
-    // Camera usage disabled by design: do not request permissions
+  const startCamera = useCallback(() => {
+    // camera disabled in page2
     try {
       setCamTargets([]);
       setCamImages([]);
@@ -160,7 +160,7 @@ export default function Page2() {
       setArranged(false);
       setShowQuestion(true);
       startClarityAnim();
-      startCamera();
+      // no camera
     }
   }, [clearTimers, startClarityAnim, startCamera, stopCamera, stopClarityAnim]);
   const windows = useMemo(() => {
@@ -327,10 +327,6 @@ export default function Page2() {
   const socketRef = useRef(null);
   const moodLockedRef = useRef(false);
   const [selectedTime, setSelectedTime] = useState("day");
-  // track wrap-around cycles for infinite scroll
-  const prevProgRef = useRef(null);
-  const cycleRef = useRef(0);
-  const lastVirtualRef = useRef(0);
   const triggerArrange = useCallback(() => {
     // Begin smooth transition into a 2x2 grid of 4 survivors
     setArranging(true);
@@ -434,28 +430,14 @@ export default function Page2() {
       else goToStage(Math.max(0, stage - 1));
     };
     const onProgress = (v) => {
-      // clamp incoming progress to [0,1]
-      const curr = Math.max(0, Math.min(1, typeof v === "number" ? v : 0));
-      const prev = prevProgRef.current;
-      // detect wrap-around at edges to create virtual infinite scroll
-      if (prev !== null) {
-        // forward wrap: 0.95 -> 0.05
-        if (prev > 0.8 && curr < 0.2) cycleRef.current += 1;
-        // backward wrap: 0.05 -> 0.95
-        else if (prev < 0.2 && curr > 0.8) cycleRef.current -= 1;
-      }
-      prevProgRef.current = curr;
-      const virtual = cycleRef.current + curr;
-      lastVirtualRef.current = virtual;
-      // fractional position [0,1) irrespective of cycles
-      const frac = ((virtual % 1) + 1) % 1;
-      // Map frac [0..1) → folderIndex 1..9 (wraps seamlessly)
+      const value = typeof v === "number" ? v : 0;
+      // Map progress [0..1] → folderIndex 1..9
       if (!moodLockedRef.current) {
-        const idx = Math.max(1, Math.min(9, Math.floor(frac * 9) + 1));
+        const idx = Math.max(1, Math.min(9, Math.floor(value * 9) + 1));
         setFolderIndex(idx);
       }
-      // derive time slot from fractional position and emit tentative selection
-      const t = getTimeSlotFromProgress(frac);
+      // derive time slot from progress and emit tentative selection
+      const t = getTimeSlotFromProgress(value);
       setSelectedTime(t);
       try { socketRef.current?.emit("sel:time", t); } catch {}
       // Ensure we are on windows stage and arranged 2x2 to visualize mood

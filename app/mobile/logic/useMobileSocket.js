@@ -9,7 +9,8 @@ export default function useMobileSocket() {
 	const lockedRef = useRef(false);
 	const MAX_PER_SET = { 1: 16, 2: 13, 3: 18, 4: 10, 5: 27 };
 	useEffect(() => {
-		const s = io("/mobile", { path: "/api/socketio" });
+		const base = (typeof window !== "undefined" && window.__NEMO_SOCKET_URL__) || process.env.NEXT_PUBLIC_SOCKET_URL || undefined;
+		const s = io(base ? `${base}/mobile` : "/mobile", { path: "/api/socketio", transports: ["websocket"] });
 		sockRef.current = s;
 		// Notify desktop landing to auto proceed when mobile connects (QR flow)
 		try {
@@ -31,6 +32,12 @@ export default function useMobileSocket() {
 			} catch {}
 		}
 		window.addEventListener("bg-gradient:progress", onProgress);
+		// Mobile reload sync
+		const emitReload = () => { try { s.emit("sync:reload"); } catch {} };
+		window.addEventListener("beforeunload", emitReload);
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "hidden") emitReload();
+		});
 		// Sync scroll activation and selection lock
 		const onEnable = () => {
 			try {
@@ -62,6 +69,15 @@ export default function useMobileSocket() {
 		s.on("moodScroll:enable", onEnable);
 		s.on("moodScroll:disable", onDisable);
 		s.on("moodSelect", onMoodSelect);
+		// Ownership control
+		s.on("control:granted", () => { lockedRef.current = false; });
+		s.on("control:revoked", () => { lockedRef.current = true; });
+		// Auto refresh mobile 20s after app reset
+		s.on("app:reset", () => {
+			setTimeout(() => {
+				try { window.location.reload(); } catch {}
+			}, 20000);
+		});
 		// Also unlock locally when UI dispatches enable-scroll for later stages
 		const localEnable = () => { lockedRef.current = false; };
 		window.addEventListener("bg-gradient:enable-scroll", localEnable);
@@ -74,6 +90,10 @@ export default function useMobileSocket() {
 			s.off("moodScroll:enable", onEnable);
 			s.off("moodScroll:disable", onDisable);
 			s.off("moodSelect", onMoodSelect);
+			s.off("control:granted");
+			s.off("control:revoked");
+			s.off("app:reset");
+			window.removeEventListener("beforeunload", emitReload);
 			try { s.disconnect(); } catch {}
 			sockRef.current = null;
 		};

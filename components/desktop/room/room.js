@@ -232,7 +232,7 @@ export default function Room(props) {
     renderer.setSize(container.clientWidth, container.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.28;
+    renderer.toneMappingExposure = 1.42;
     renderer.physicallyCorrectLights = true;
     renderer.useLegacyLights = false;
     renderer.shadowMap.enabled = true;
@@ -313,7 +313,7 @@ export default function Room(props) {
     const disposeEnv = setupEXREnvironment(renderer, scene, "/exr/mea.exr");
 
     // Add a faint cool ambient to neutralize yellow cast (no heavy filters)
-    const ambient = new THREE.AmbientLight(0xdfeaff, 0.045);
+    const ambient = new THREE.AmbientLight(0xdfeaff, 0.028);
     scene.add(ambient);
     const ambientRef = { current: ambient };
 
