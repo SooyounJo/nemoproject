@@ -6,7 +6,6 @@ export default function TvScreen() {
   const [url, setUrl] = useState("");
   const [fade, setFade] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
-  const [needsTap, setNeedsTap] = useState(false);
   const mainAudioRef = useRef(null);
   const fxAudioRef = useRef(null);
   const fadeTimerRef = useRef(null);
@@ -31,10 +30,7 @@ export default function TvScreen() {
         a.play().then(() => {
           setAudioReady(true);
           rampVolume(a, 0.5, 1200);
-        }).catch(() => {
-          // autoplay blocked → ask for a tap
-          setNeedsTap(true);
-        });
+        }).catch(() => {});
       };
       // attempt immediate; browsers may block until interaction
       start();
@@ -185,7 +181,6 @@ export default function TvScreen() {
         alignItems: "center",
         justifyContent: "center",
       }}
-      onPointerDown={needsTap ? onEnableAudio : undefined}
     >
       {/* Mobile-style Three.js background until image appears */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", opacity: display ? 0 : 1, transition: "opacity 900ms ease" }}>
@@ -245,26 +240,6 @@ export default function TvScreen() {
             }
           `}</style>
         </>
-      ) : null}
-      {needsTap ? (
-        <div
-          onClick={onEnableAudio}
-          style={{
-            position: "absolute",
-            bottom: 18,
-            left: 18,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(0,0,0,0.35)",
-            color: "#e5e7eb",
-            fontSize: 13,
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-        >
-          🔊 탭하여 사운드 활성화
-        </div>
       ) : null}
     </div>
   );
