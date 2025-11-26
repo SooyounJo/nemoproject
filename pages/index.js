@@ -93,15 +93,18 @@ export default function Index() {
   };
 
   useEffect(() => {
-    // Keep reset sync; do not auto-advance without explicit action (QR or button)
-    const socket = io({ path: "/api/socketio" });
+    // Only auto-advance when a mobile client connects via QR (emits landingProceed)
+    const socket = io({ path: "/api/socketio", transports: ["websocket"] });
+    const onProceed = () => { handleStart(); };
     const onReset = () => {
       try {
         setFading(false); setFxGather(false); setFxExplode(false);
       } catch {}
     };
+    socket.on("landingProceed", onProceed);
     socket.on("app:reset", onReset);
     return () => {
+      socket.off("landingProceed", onProceed);
       socket.off("app:reset", onReset);
       socket.disconnect();
     };
