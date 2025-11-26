@@ -19,21 +19,6 @@ export default function EdgeNav({ onPrev, onNext }) {
       }}
     >
       <button
-        onClick={onPrev}
-        style={{
-          padding: "6px 10px",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background: "rgba(17,19,24,0.35)",
-          color: "#e5e7eb",
-          cursor: "pointer",
-        }}
-        aria-label="Previous"
-        title="Previous"
-      >
-        이전
-      </button>
-      <button
         onClick={onNext}
         style={{
           padding: "6px 10px",

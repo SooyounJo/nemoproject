@@ -93,25 +93,18 @@ export default function Index() {
   };
 
   useEffect(() => {
-    // Listen for mobile connection to auto proceed
+    // Keep reset sync; do not auto-advance without explicit action (QR or button)
     const socket = io({ path: "/api/socketio" });
-    const onProceed = () => {
-      handleStart();
-    };
     const onReset = () => {
       try {
-        // already on index; ensure state reset visually
         setFading(false); setFxGather(false); setFxExplode(false);
       } catch {}
     };
-    socket.on("landingProceed", onProceed);
     socket.on("app:reset", onReset);
     return () => {
-      socket.off("landingProceed", onProceed);
       socket.off("app:reset", onReset);
       socket.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStart = useCallback(() => {
