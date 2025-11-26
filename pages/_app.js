@@ -2,6 +2,7 @@
 
 import "../styles/globals.css";
 import { useEffect } from "react";
+import { ensureGlobalAudio } from "@/utils/globalAudio";
 
 export default function App({ Component, pageProps }) {
   useEffect(() => {
@@ -20,6 +21,12 @@ export default function App({ Component, pageProps }) {
       }
     } catch {}
   }, []);
+
+  useEffect(() => {
+    // Start or resume global background BGM for the entire app
+    ensureGlobalAudio();
+  }, []);
+
   return <Component {...pageProps} />;
 }
 

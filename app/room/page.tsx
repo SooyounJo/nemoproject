@@ -4,8 +4,10 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
 import TypoWeather from "@/app/components/room/TypoWeather";
+import TypoTime from "@/app/components/room/TypoTime";
 import { getTimeSlotFromProgress } from "@/lib/mood-select";
 import { useRouter } from "next/navigation";
+import { ensureGlobalAudio } from "@/utils/globalAudio";
 
 export default function FixedRoomPage() {
   const router = useRouter();
@@ -27,6 +29,10 @@ export default function FixedRoomPage() {
       html.style.height = prevHtmlHeight;
       body.style.height = prevBodyHeight;
     };
+  }, []);
+  // Ensure global BGM is running when entering /room (desktop)
+  useEffect(() => {
+    ensureGlobalAudio();
   }, []);
   // page-level HTML screen controls (left panel)
   const [pHtmlDist, setPHtmlDist] = useState(-10.0);
@@ -265,9 +271,9 @@ export default function FixedRoomPage() {
     }
     // debug: step change
     try { console.log("[room] step ->", step); } catch {}
-    // step 1: first Next
+    // step 1: first Next (time-of-day question)
     if (step === 1) {
-      setBannerText("당신이 좋아하는 시간대를 선택해주세요");
+      setBannerText("하루 중 어떤 시간에 휴식이 필요하신가요?\n모바일을 스크롤하며 찾아보세요");
       setBannerVisible(true);
       bannerTimerRef.current = setTimeout(() => setBannerVisible(false), 3000);
     }
@@ -284,6 +290,18 @@ export default function FixedRoomPage() {
       }
     };
   }, [step]);
+  // During step 1 (time-of-day question), map scroll progress to a time index (5 bins)
+  const timeIdx = useMemo(() => {
+    const src =
+      typeof remoteProgress === "number"
+        ? remoteProgress
+        : typeof lightPath === "number"
+        ? lightPath
+        : 0;
+    const p = Math.max(0, Math.min(1, src));
+    return Math.min(4, Math.floor(p * 5));
+  }, [remoteProgress, lightPath]);
+
   // During step 2 (weather question), map mobile scroll progress to a weather image (HTML screen)
   // Weather index for typo overlay (6 bins)
   const weatherIdx = useMemo(() => {
@@ -348,6 +366,13 @@ export default function FixedRoomPage() {
         staticView={true}
         screenGridImages={screenGridImages}
       />
+      {/* Left-fixed typo time slots (no modal) */}
+      {step === 1 && (
+        <TypoTime
+          visible
+          highlightIndex={timeIdx}
+        />
+      )}
       {/* Left-fixed typo weather (no modal) */}
       {step === 2 && (
         <TypoWeather
@@ -376,6 +401,7 @@ export default function FixedRoomPage() {
             letterSpacing: 0.2,
             pointerEvents: "none",
             textAlign: "center",
+            whiteSpace: "pre-line",
           }}
         >
           {bannerText}

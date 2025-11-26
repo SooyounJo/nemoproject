@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export default function TopQuestion() {
   const [show, setShow] = useState(false);
   // Start with the former 3rd question as the first
-  const [text, setText] = useState("이 느껴지는 무드를 찾아보세요");
+  const [text, setText] = useState("편안함이 느껴지는 무드를 찾아 선택 버튼을 누르세요");
   const [stage, setStage] = useState(1);
   const currentStageRef = useRef(1);
   const finalizedRef = useRef(false); // prevent re-show after final

@@ -232,7 +232,8 @@ export default function Room(props) {
     renderer.setSize(container.clientWidth, container.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.42;
+    // Make the overall room a bit darker so light beams feel stronger
+    renderer.toneMappingExposure = 1.30;
     renderer.physicallyCorrectLights = true;
     renderer.useLegacyLights = false;
     renderer.shadowMap.enabled = true;
@@ -313,7 +314,8 @@ export default function Room(props) {
     const disposeEnv = setupEXREnvironment(renderer, scene, "/exr/mea.exr");
 
     // Add a faint cool ambient to neutralize yellow cast (no heavy filters)
-    const ambient = new THREE.AmbientLight(0xdfeaff, 0.028);
+    // Keep ambient very low so most brightness comes from the main lights
+    const ambient = new THREE.AmbientLight(0xdfeaff, 0.010);
     scene.add(ambient);
     const ambientRef = { current: ambient };
 
@@ -1642,8 +1644,9 @@ export default function Room(props) {
     };
     // palettes (soft, non-primary “emotional” tones) - 원래 순서 유지
     // p=0 쪽이 아침, p=1 쪽이 밤에 가깝도록 구성
-    const ambPalette = ["#ffe6a3", "#d6ebff", "#fafbff", "#ffd3e5", "#ff9a3c", "#9fbaff", "#1a1b25"];
-    const bgPalette  = ["#fff2cf", "#e8f2ff", "#f6f7fa", "#ffe6f1", "#ffcf9e", "#d7e3ff", "#0f1117"];
+    // 전체 방은 한 톤 더 어둡게, 창/책상 위 빛만 강조되도록 배경 계열을 어둡게 조정
+    const ambPalette = ["#b8c7e0", "#c2d6f0", "#d4d9e8", "#d5c3d6", "#d2a67a", "#a5b7e5", "#12131b"];
+    const bgPalette  = ["#272934", "#2b3040", "#303545", "#332a38", "#372721", "#2b3244", "#08090f"];
     const spotPalette= ["#ffd48a", "#cbe1ff", "#ffffff", "#ffc2da", "#ff8d36", "#9ab7ff", "#b0c0ff"];
 
     // 색상 보간은 진행값 p와 같은 방향으로

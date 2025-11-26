@@ -147,8 +147,8 @@ export function loadModelAndLights(scene, lightPos, onReady) {
         }
       }
 
-      // Spotlight
-      const spot = new THREE.SpotLight(new THREE.Color("#eaf2ff"), 650, 80, 0.35, 0.25, 1.0);
+      // Spotlight: key light; keep strong but rely less on global exposure
+      const spot = new THREE.SpotLight(new THREE.Color("#eaf2ff"), 750, 80, 0.35, 0.25, 1.0);
       spot.position.set(lightPos.x, lightPos.y, lightPos.z);
       spot.castShadow = true;
       spot.shadow.mapSize.set(2048, 2048);
@@ -169,15 +169,15 @@ export function loadModelAndLights(scene, lightPos, onReady) {
       refs.spotTarget = target;
       refs.spotHelper = helper;
 
-      // Soft point inside (dimmer)
-      const point = new THREE.PointLight(0xeaf2ff, 0.1, 3, 2);
+      // Soft point inside (very dim fill so corners are not completely black)
+      const point = new THREE.PointLight(0xeaf2ff, 0.06, 3, 2);
       point.position.set(0.2, 1.2, -0.3);
       point.castShadow = false;
       scene.add(point);
       refs.point = point;
 
-      // Weak point light inside the space (wider spread, no shadows)
-      const pin = new THREE.PointLight(0xeaf2ff, 20, 16, 1.6);
+      // Weak point light inside the space (wider spread, no shadows) — lowered so room stays dark
+      const pin = new THREE.PointLight(0xeaf2ff, 12, 16, 1.6);
       pin.position.set(0.5, 1.9, -1.0);
       pin.castShadow = false;
       scene.add(pin);

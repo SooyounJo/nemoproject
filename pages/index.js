@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { io } from "socket.io-client";
 import QRCode from "qrcode";
@@ -13,9 +13,6 @@ export default function Index() {
   const [fading, setFading] = useState(false);
   const [fxGather, setFxGather] = useState(false);
   const [fxExplode, setFxExplode] = useState(false);
-  const mainAudioRef = useRef(null);
-  const [needsTap, setNeedsTap] = useState(false);
-  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     // generate QR for /mobile on same host (socket path shared)
@@ -24,73 +21,6 @@ export default function Index() {
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(""));
   }, []);
-
-  function rampVolume(audio, target, ms) {
-    if (!audio) return;
-    const steps = Math.max(1, Math.floor(ms / 50));
-    const start = audio.volume;
-    const delta = target - start;
-    let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      const t = i / steps;
-      audio.volume = Math.max(0, Math.min(1, start + delta * t));
-      if (i >= steps) clearInterval(id);
-    }, 50);
-  }
-
-  useEffect(() => {
-    // boot background main music at landing
-    try {
-      const a = new Audio("/mmusic/main.mp3");
-      a.loop = true;
-      a.volume = 0;
-      mainAudioRef.current = a;
-      // respect saved mute
-      let wantMute = false;
-      try { wantMute = localStorage.getItem("nemo_audio_muted") === "1"; } catch {}
-      setMuted(wantMute);
-      if (wantMute) {
-        // don't start playback if muted
-        a.pause();
-      } else {
-        a.play().then(() => {
-          rampVolume(a, 0.5, 1200);
-        }).catch(() => setNeedsTap(true));
-      }
-    } catch {}
-  }, []);
-
-  const enableAudio = () => {
-    try {
-      const a = mainAudioRef.current || new Audio("/mmusic/main.mp3");
-      mainAudioRef.current = a;
-      a.loop = true;
-      if (a.paused) a.play().catch(() => {});
-      rampVolume(a, 0.5, 800);
-      setNeedsTap(false);
-    } catch {}
-  };
-
-  const toggleMute = () => {
-    try {
-      const a = mainAudioRef.current;
-      if (!a) return;
-      if (muted) {
-        // unmute and resume
-        if (a.paused) a.play().catch(() => {});
-        rampVolume(a, 0.5, 300);
-        setMuted(false);
-        try { localStorage.setItem("nemo_audio_muted", "0"); } catch {}
-      } else {
-        // mute
-        rampVolume(a, 0.0, 200);
-        setTimeout(() => { try { a.pause(); } catch {} }, 220);
-        setMuted(true);
-        try { localStorage.setItem("nemo_audio_muted", "1"); } catch {}
-      }
-    } catch {}
-  };
 
   useEffect(() => {
     // Only auto-advance when a mobile client connects via QR (emits landingProceed)
@@ -128,7 +58,6 @@ export default function Index() {
         background: "#0b0d12",
         overflow: "hidden",
       }}
-      onPointerDown={needsTap ? enableAudio : undefined}
     >
       <Head>
         <link
@@ -209,22 +138,10 @@ export default function Index() {
         }}
       >
         <button
-          onClick={toggleMute}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: muted ? "rgba(120,25,25,0.35)" : "rgba(17,19,24,0.35)",
-            color: "#e5e7eb",
-            cursor: "pointer",
-          }}
-          title={muted ? "음악 켜기" : "음악 끄기"}
-        >
-          {muted ? "음악 켜기" : "음악 끄기"}
-        </button>
-        <button
           onClick={handleStart}
           style={{
+            // Hide the visual "Next" button; flow and socket-based start remain
+            display: "none",
             padding: "6px 10px",
             borderRadius: 8,
             border: "1px solid rgba(255,255,255,0.14)",
