@@ -12,12 +12,8 @@ export default function FinalScreen() {
   useEffect(() => {
     function onFinal() {
       setShow(true);
-      // start a 20s idle timer for auto reset (mobile visual only)
+      // Stay on final screen indefinitely (do not auto-reset)
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        // soft reset of UI hints
-        setShow(false);
-      }, 20000);
     }
     window.addEventListener("bg-gradient:final", onFinal);
     return () => {

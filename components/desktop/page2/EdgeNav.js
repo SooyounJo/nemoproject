@@ -27,6 +27,7 @@ export default function EdgeNav({ onPrev, onNext }) {
           background: "rgba(17,19,24,0.35)",
           color: "#e5e7eb",
           cursor: "pointer",
+          display: "none",
         }}
         aria-label="Next"
         title="Next"

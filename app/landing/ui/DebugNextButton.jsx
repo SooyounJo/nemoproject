@@ -5,6 +5,7 @@ export default function DebugNextButton({ onClick }) {
 		<button
 			onClick={onClick}
 			style={{
+				display: "none",
 				position: "absolute",
 				right: 22,
 				bottom: 22,

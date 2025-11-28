@@ -26,3 +26,12 @@ body {
   margin: 0;
   padding: 0;
 }
+
+@keyframes flashFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.flash-overlay {
+  animation: flashFadeOut 1.1s ease-out forwards;
+}

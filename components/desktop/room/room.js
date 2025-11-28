@@ -86,6 +86,8 @@ export default function Room(props) {
     disableColorMapping,
     pinIntensityTarget,
     pinIntensityLerp,
+    exposureTarget,
+    exposureLerp,
     // External HTML screen control (optional)
     initialHtmlDist,
     initialHtmlOffX,
@@ -1538,6 +1540,29 @@ export default function Room(props) {
     raf = requestAnimationFrame(step);
     return () => raf && cancelAnimationFrame(raf);
   }, [pinIntensityTarget, pinIntensityLerp]);
+
+  // Smoothly adjust global exposure
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    if (exposureTarget === undefined || exposureTarget === null) return;
+    const start = renderer.toneMappingExposure;
+    const end = exposureTarget;
+    if (Math.abs(end - start) < 1e-4) return;
+    let raf = null;
+    const t0 = performance.now();
+    const dur = Math.max(100, exposureLerp || 900);
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / dur);
+      const s = u * u * (3 - 2 * u);
+      const v = start + (end - start) * s;
+      renderer.toneMappingExposure = v;
+      if (u < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => raf && cancelAnimationFrame(raf);
+  }, [exposureTarget, exposureLerp]);
+
   // Smooth light move to external target (used by /room page buttons)
   useEffect(() => {
     const target = (props && props.lightTarget) || null;

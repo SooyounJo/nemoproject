@@ -74,9 +74,9 @@ export default function useMobileSocket() {
 		s.on("control:revoked", () => { lockedRef.current = true; });
 		// Auto refresh mobile 20s after app reset
 		s.on("app:reset", () => {
-			setTimeout(() => {
-				try { window.location.reload(); } catch {}
-			}, 20000);
+			// Disconnect socket to prevent interference, stay on current screen
+			try { s.disconnect(); } catch {}
+			sockRef.current = null;
 		});
 		// Also unlock locally when UI dispatches enable-scroll for later stages
 		const localEnable = () => { lockedRef.current = false; };

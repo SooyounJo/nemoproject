@@ -154,7 +154,8 @@ export default function FixedRoomPage() {
     const prev = prevStepRef.current;
     prevStepRef.current = step;
     if (prev !== step && step === 1) {
-      const lockMs = 1200 + 200; // cameraLerp + buffer
+      // Reduced lock time for better responsiveness (was 1200+200)
+      const lockMs = 500; 
       setMobileLocked(true);
       mobileLockedRef.current = true;
       try { socketRef.current?.emit("moodScroll:disable"); } catch {}
@@ -218,7 +219,8 @@ export default function FixedRoomPage() {
   }, [step, remoteProgress]);
   const progressTarget = (lightPath ?? defaultProgress) as any;
   // Slow down light path interpolation for a heavier feel
-  const dynamicProgressLerp = 1800;
+  // Adjusted to 120ms for real-time responsiveness (was 1800)
+  const dynamicProgressLerp = 120;
   const overlayTarget = (remoteOverlay !== null ? remoteOverlay : (step === 3 ? 0 : 1));
   const dynamicOverlayLerp = remoteOverlay !== null ? 180 : 1200;
 
@@ -310,6 +312,11 @@ export default function FixedRoomPage() {
   }, [remoteProgress]);
   const isWeatherChosen = typeof remoteProgress === "number";
 
+  // Map weather index to exposure values for dramatic contrast changes
+  // Clear(1.4), Cloudy(1.0), Rainy(0.6), Snowy(1.5), Foggy(0.8), Stormy(0.4)
+  const weatherExposureMap = useMemo(() => [1.4, 1.0, 0.6, 1.5, 0.8, 0.4], []);
+  const activeExposure = step === 2 ? weatherExposureMap[weatherIdx] : 1.3;
+
   // Freeze desktop screen 2x2 images to the user's last selection (do NOT follow light path)
   const [screenGridImages, setScreenGridImages] = useState<string[] | undefined>(undefined);
   useEffect(() => {
@@ -335,6 +342,8 @@ export default function FixedRoomPage() {
         lightLerp={1200}
         pinIntensityTarget={step === 2 ? 26 : 10}
         pinIntensityLerp={1200}
+        exposureTarget={activeExposure}
+        exposureLerp={800}
         // After two Next presses (step === 2), apply a stronger yaw around Y (reverse direction)
         yawDegTarget={step >= 2 ? -48 : 0}
         yawLerp={1800}
@@ -408,7 +417,7 @@ export default function FixedRoomPage() {
         </div>
       )}
       {/* Bottom-right glass nav */}
-      <div style={{ position: "fixed", right: 16, bottom: 16, display: "flex", gap: 8, zIndex: 40, padding: "6px 8px", borderRadius: 12, background: "rgba(17,19,24,0.35)", border: "1px solid rgba(255,255,255,0.16)", backdropFilter: "blur(10px) saturate(1.02)" }}>
+      <div style={{ position: "fixed", right: 16, bottom: 16, display: "none", gap: 8, zIndex: 40, padding: "6px 8px", borderRadius: 12, background: "rgba(17,19,24,0.35)", border: "1px solid rgba(255,255,255,0.16)", backdropFilter: "blur(10px) saturate(1.02)" }}>
         {step < steps.length - 1 && (
           <button
             onClick={() => {

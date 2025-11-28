@@ -1,58 +1,107 @@
-let nemoMainAudio = null;
-let nemoAudioBootstrapped = false;
+// Global background audio shared across all pages (index, page2, room, etc.)
+// Designed to work with both Pages Router and App Router by persisting in window scope.
 
-function rampVolumeGlobal(audio, target, ms) {
-  if (!audio) return;
-  const steps = Math.max(1, Math.floor(ms / 50));
-  const start = audio.volume;
-  const delta = target - start;
-  let i = 0;
-  const id = setInterval(() => {
-    i += 1;
-    const t = i / steps;
-    audio.volume = Math.max(0, Math.min(1, start + delta * t));
-    if (i >= steps) clearInterval(id);
-  }, 50);
+// Use a unique property on window to store the audio instance
+// so it survives Next.js router transitions (which are client-side).
+const KEY_AUDIO = "__NEMO_GLOBAL_AUDIO__";
+const KEY_BOOTSTRAPPED = "__NEMO_AUDIO_BOOTSTRAPPED__";
+
+/**
+ * Ramps volume exponentially to target over ms duration.
+ * Returns a promise that resolves when ramp is complete.
+ */
+export function rampVolumeGlobal(audio, target, ms) {
+  if (!audio) return Promise.resolve();
+  // cancel any ongoing ramp
+  if (audio._rampTimer) {
+    clearTimeout(audio._rampTimer);
+    audio._rampTimer = null;
+  }
+  return new Promise((resolve) => {
+    const start = audio.volume;
+    const startTime = performance.now();
+    
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / ms);
+      // simple linear interpolation for safety, or can use exponential
+      const nextVolume = start + (target - start) * progress;
+      audio.volume = Math.max(0, Math.min(1, nextVolume));
+
+      if (progress < 1) {
+        audio._rampTimer = requestAnimationFrame(step);
+      } else {
+        audio.volume = target;
+        audio._rampTimer = null;
+        resolve();
+      }
+    }
+    audio._rampTimer = requestAnimationFrame(step);
+  });
 }
 
+/**
+ * Ensures the global background audio is created and playing.
+ * Can be called safely from multiple pages' useEffect.
+ */
 export function ensureGlobalAudio() {
   if (typeof window === "undefined") return;
 
-  // Reuse single Audio instance per browser context
-  if (!nemoMainAudio) {
-    try {
-      nemoMainAudio = new Audio("/mmusic/main.mp3");
-      nemoMainAudio.loop = true;
-      nemoMainAudio.volume = 0;
-    } catch {
-      return;
-    }
+  // 1. Create or retrieve audio instance
+  if (!window[KEY_AUDIO]) {
+    const audio = new Audio("/mmusic/main.mp3");
+    audio.loop = true;
+    audio.volume = 0; // start silent, fade in
+    // Keep playing even if navigated
+    audio.preload = "auto";
+    window[KEY_AUDIO] = audio;
+    
+    // Try to recover play state if browser blocked it initially
+    // (Users usually interact with the page early on)
+    const tryPlay = () => {
+      if (audio.paused) {
+        audio.play().catch(() => {
+          // still blocked, wait for interaction
+        });
+      }
+    };
+    document.addEventListener("click", tryPlay, { once: true });
+    document.addEventListener("touchstart", tryPlay, { once: true });
+    document.addEventListener("keydown", tryPlay, { once: true });
   }
 
-  try {
-    nemoMainAudio
-      .play()
-      .then(() => {
-        rampVolumeGlobal(nemoMainAudio, 0.5, 1200);
-      })
-      .catch(() => {
-        // Autoplay 정책에 막힌 경우: 첫 포인터 제스처에서 한 번 더 시도
-        if (!nemoAudioBootstrapped) {
-          nemoAudioBootstrapped = true;
-          const handler = () => {
-            if (!nemoMainAudio) return;
-            nemoMainAudio
-              .play()
-              .then(() => {
-                rampVolumeGlobal(nemoMainAudio, 0.5, 800);
-              })
-              .catch(() => {});
-            window.removeEventListener("pointerdown", handler);
-          };
-          window.addEventListener("pointerdown", handler, { once: true });
-        }
-      });
-  } catch {}
+  const audio = window[KEY_AUDIO];
+
+  // 2. Mark as bootstrapped (user entered the app flow)
+  window[KEY_BOOTSTRAPPED] = true;
+
+  // 3. Ensure playing
+  if (audio.paused) {
+    audio.play().then(() => {
+      // fade in to 0.5 if started from silence
+      if (audio.volume < 0.05) {
+        rampVolumeGlobal(audio, 0.5, 2000);
+      }
+    }).catch((e) => {
+      console.warn("Global audio autoplay blocked, waiting for interaction", e);
+    });
+  } else {
+    // If already playing but volume low (maybe from a fade out?), fade in
+    if (audio.volume < 0.5) {
+      rampVolumeGlobal(audio, 0.5, 1500);
+    }
+  }
 }
 
-
+/**
+ * Optional: Stop or fade out global audio (e.g. if leaving the experience)
+ */
+export function fadeOutGlobalAudio() {
+  if (typeof window === "undefined") return;
+  const audio = window[KEY_AUDIO];
+  if (audio && !audio.paused) {
+    rampVolumeGlobal(audio, 0, 1500).then(() => {
+      audio.pause();
+    });
+  }
+}
