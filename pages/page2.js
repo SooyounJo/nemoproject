@@ -341,9 +341,9 @@ export default function Page2() {
     withArea.sort((a, b) => b.area - a.area);
     const surv = withArea.slice(0, 4).map((e) => e.idx);
     setSurvivors(surv);
-    // compute folder-based 4 tile sources from /2d/{1..9}/{n}-{1..4}.png
+    // compute 4 tile sources from /genimg/{set}-{k}.png to ensure files exist in repo
     const n0 = ((folderIndex % 9) + 9) % 9 || 9;
-    const tiles0 = [1, 2, 3, 4].map((k) => `/2d/${n0}/${n0}-${k}.png`);
+    const tiles0 = [1, 2, 3, 4].map((k) => `/genimg/${n0}-${k}.png`);
     setPrevTileSources(tiles0);
     setTileSources(tiles0);
     // emit selected mood based on folder → mood mapping
@@ -472,7 +472,7 @@ export default function Page2() {
   useEffect(() => {
     if (!arranged) return;
     const n = ((folderIndex % 9) + 9) % 9 || 9;
-    const tiles = [1, 2, 3, 4].map((k) => `/2d/${n}/${n}-${k}.png`);
+    const tiles = [1, 2, 3, 4].map((k) => `/genimg/${n}-${k}.png`);
     setPrevTileSources(tileSources);
     setTileSources(tiles);
   }, [folderIndex, arranged]);
