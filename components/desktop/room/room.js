@@ -338,39 +338,13 @@ export default function Room(props) {
     // Capture initial camera as preset 3 snapshot
     setPreset3Cam({ x: camX, y: camY, z: camZ });
 
-    // Lightweight FPS meter (no external deps)
-    const fpsEl = document.createElement("div");
-    fpsEl.style.position = "absolute";
-    fpsEl.style.top = "8px";
-    fpsEl.style.left = "8px";
-    fpsEl.style.padding = "2px 6px";
-    fpsEl.style.borderRadius = "6px";
-    fpsEl.style.fontSize = "11px";
-    fpsEl.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-    fpsEl.style.background = "rgba(17,19,24,.6)";
-    fpsEl.style.border = "1px solid #23262d";
-    fpsEl.style.color = "#bfc3ca";
-    fpsEl.style.zIndex = "5";
-    fpsEl.textContent = "FPS: --";
-    container.appendChild(fpsEl);
+    // FPS overlay disabled (no-op updater to avoid overhead)
+    let fpsEl = null;
     let fpsFrames = 0;
     let fpsLast = performance.now();
     let fpsAccum = 0;
     let fpsCount = 0;
-    const updateFps = (dt) => {
-      fpsFrames++;
-      fpsAccum += dt;
-      fpsCount++;
-      // update every ~250ms for stability
-      if (performance.now() - fpsLast >= 250) {
-        const avgDt = fpsAccum / Math.max(1, fpsCount);
-        const fps = Math.round(1000 / Math.max(1e-3, avgDt));
-        fpsEl.textContent = `FPS: ${fps}`;
-        fpsLast = performance.now();
-        fpsAccum = 0;
-        fpsCount = 0;
-      }
-    };
+    const updateFps = () => {};
 
     // Create overlay group and initial WebGL plane (behind model)
     {
@@ -762,11 +736,7 @@ export default function Room(props) {
       // keep group orientation (no billboard), so it stays aligned with the window
       atmosphere.onFrame();
       // FPS meter
-      {
-        const now = performance.now();
-        updateFps(now - (tick.prevTime || now));
-        tick.prevTime = now;
-      }
+      // disabled
       // Optionally follow camera for overlay
       if (overlayFollowCamera && overlayGroupRef.current && camera) {
         const dist = typeof overlayFollowDist === "number" ? overlayFollowDist : 1.2;
