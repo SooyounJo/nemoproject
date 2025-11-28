@@ -29,12 +29,12 @@ export default function ScrollClock({ visible = true, progress = 0 }) {
       style={{
         position: "fixed",
         top: 14,
-        right: 16,
+        left: 16,
         zIndex: 80,
         color: "#e5e7eb",
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: 14,
+        fontSize: 18,
         letterSpacing: 0.5,
         pointerEvents: "none",
       }}
