@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
 import TypoWeather from "@/app/components/room/TypoWeather";
 import TypoTime from "@/app/components/room/TypoTime";
+import LiveClock from "@/app/components/room/LiveClock";
 import { getTimeSlotFromProgress } from "@/lib/mood-select";
 import { useRouter } from "next/navigation";
 import { ensureGlobalAudio } from "@/utils/globalAudio";
@@ -375,6 +376,8 @@ export default function FixedRoomPage() {
         staticView={true}
         screenGridImages={screenGridImages}
       />
+      {/* Top-right live HH:mm clock */}
+      <LiveClock visible={step !== 3} />
       {/* Left-fixed typo time slots (no modal) */}
       {step === 1 && (
         <TypoTime
