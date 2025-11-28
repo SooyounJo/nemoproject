@@ -34,7 +34,7 @@ export default function ScrollClock({ visible = true, progress = 0 }) {
         color: "#e5e7eb",
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: 26,
+        fontSize: 52,
         letterSpacing: 0.5,
         pointerEvents: "none",
       }}
