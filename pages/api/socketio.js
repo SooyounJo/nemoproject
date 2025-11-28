@@ -160,6 +160,10 @@ export default function handler(req, res) {
       socket.on("genClear", () => {
         io.emit("genClear");
       });
+      // Trigger mobile scroll nudge overlay
+      socket.on("mobile:nudge:scroll", () => {
+        try { io.of("/mobile").emit("mobile:nudge:scroll"); } catch {}
+      });
       // bridge: selected image from desktop/room → tv & sbm (normalize path)
       socket.on("imageSelected", (url) => {
         const normalized = normalizeGenimg(url);

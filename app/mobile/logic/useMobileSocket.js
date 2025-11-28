@@ -98,6 +98,10 @@ export default function useMobileSocket() {
 		s.on("mobile:kick", (delayMs) => {
 			scheduleReload(typeof delayMs === "number" ? delayMs : 20000);
 		});
+		// Gentle scroll nudge overlay trigger
+		s.on("mobile:nudge:scroll", () => {
+			try { window.dispatchEvent(new CustomEvent("nudge:scroll")); } catch {}
+		});
 		// Also unlock locally when UI dispatches enable-scroll for later stages
 		const localEnable = () => { lockedRef.current = false; };
 		window.addEventListener("bg-gradient:enable-scroll", localEnable);
@@ -114,6 +118,7 @@ export default function useMobileSocket() {
 			s.off("control:revoked");
 			s.off("app:reset");
 			s.off("mobile:kick");
+			s.off("mobile:nudge:scroll");
 			window.removeEventListener("beforeunload", emitReload);
 			try { s.disconnect(); } catch {}
 			sockRef.current = null;
