@@ -179,6 +179,8 @@ export default function FixedRoomPage() {
   // Final step idle → broadcast reset and return to index after 10s
   useEffect(() => {
     if (step !== 3) return;
+    // Immediately schedule mobile kick (20s) so old device is forced out
+    try { socketRef.current?.emit("mobile:kick", 20000); } catch {}
     const id = setTimeout(() => {
       try {
         // notify all clients to reset and clear TV

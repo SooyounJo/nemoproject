@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { io } from "socket.io-client";
 import QRCode from "qrcode";
@@ -13,19 +13,35 @@ export default function Index() {
   const [fading, setFading] = useState(false);
   const [fxGather, setFxGather] = useState(false);
   const [fxExplode, setFxExplode] = useState(false);
+  // fresh session token each time index loads (prevents stale mobile from advancing)
+  const sessionToken = useMemo(() => {
+    const r = Math.random().toString(36).slice(2, 10);
+    try { sessionStorage.setItem("nemo_session_token", r); } catch {}
+    return r;
+  }, []);
 
   useEffect(() => {
     // generate QR for /mobile on same host (socket path shared)
-    const href = typeof window !== "undefined" ? `${window.location.origin}/mobile` : "/mobile";
+    const href = typeof window !== "undefined"
+      ? `${window.location.origin}/mobile?session=${encodeURIComponent(sessionToken)}`
+      : `/mobile?session=${encodeURIComponent(sessionToken)}`;
     QRCode.toDataURL(href, { margin: 1, scale: 6, color: { dark: "#e5e7eb", light: "#000000" } })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(""));
-  }, []);
+  }, [sessionToken]);
 
   useEffect(() => {
     // Only auto-advance when a mobile client connects via QR (emits landingProceed)
     const socket = io({ path: "/api/socketio", transports: ["websocket"] });
-    const onProceed = () => { handleStart(); };
+    const onProceed = (payload) => {
+      try {
+        const msgSession = payload && typeof payload.session === "string" ? payload.session : "";
+        // proceed ONLY if it matches our current QR session
+        if (msgSession && msgSession === sessionToken) {
+          handleStart();
+        }
+      } catch {}
+    };
     const onReset = () => {
       try {
         setFading(false); setFxGather(false); setFxExplode(false);
@@ -38,7 +54,7 @@ export default function Index() {
       socket.off("app:reset", onReset);
       socket.disconnect();
     };
-  }, []);
+  }, [sessionToken]);
 
   const handleStart = useCallback(() => {
     if (fading) return;

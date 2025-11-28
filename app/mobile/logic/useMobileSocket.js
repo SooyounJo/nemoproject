@@ -14,8 +14,14 @@ export default function useMobileSocket() {
 		sockRef.current = s;
 		// Notify desktop landing to auto proceed when mobile connects (QR flow)
 		try {
+			// read session token from URL (?session=...)
+			const sp = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+			const session = sp.get("session") || "";
 			s.on("connect", () => {
-				try { s.emit("landingProceed"); } catch {}
+				// Only notify if this page was opened via QR with a valid session param
+				if (session) {
+					try { s.emit("landingProceed", { session }); } catch {}
+				}
 			});
 		} catch {}
 
@@ -72,11 +78,25 @@ export default function useMobileSocket() {
 		// Ownership control
 		s.on("control:granted", () => { lockedRef.current = false; });
 		s.on("control:revoked", () => { lockedRef.current = true; });
-		// Auto refresh mobile 20s after app reset
+		// Forced kick/reload scheduling
+		const scheduleReload = (ms) => {
+			const dur = Math.max(0, Number(ms || 20000));
+			try {
+				// hard disconnect immediately to avoid accidental reconnection
+				s.disconnect();
+				sockRef.current = null;
+			} catch {}
+			setTimeout(() => {
+				try { window.location.reload(); } catch {}
+			}, dur);
+		};
+		// Auto refresh mobile 20s after app reset (fallback)
 		s.on("app:reset", () => {
-			// Disconnect socket to prevent interference, stay on current screen
-			try { s.disconnect(); } catch {}
-			sockRef.current = null;
+			scheduleReload(20000);
+		});
+		// Explicit kick from desktop when final page reached
+		s.on("mobile:kick", (delayMs) => {
+			scheduleReload(typeof delayMs === "number" ? delayMs : 20000);
 		});
 		// Also unlock locally when UI dispatches enable-scroll for later stages
 		const localEnable = () => { lockedRef.current = false; };
@@ -93,6 +113,7 @@ export default function useMobileSocket() {
 			s.off("control:granted");
 			s.off("control:revoked");
 			s.off("app:reset");
+			s.off("mobile:kick");
 			window.removeEventListener("beforeunload", emitReload);
 			try { s.disconnect(); } catch {}
 			sockRef.current = null;

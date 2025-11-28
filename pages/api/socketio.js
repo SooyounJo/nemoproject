@@ -136,6 +136,13 @@ export default function handler(req, res) {
           io.of("/tv").emit("tvClear");
         } catch {}
       });
+      // Force mobile clients to reload after a delay (ms)
+      socket.on("mobile:kick", (delayMs) => {
+        try {
+          const ms = Math.max(0, Math.min(120000, Number(delayMs || 20000)));
+          io.of("/mobile").emit("mobile:kick", ms);
+        } catch {}
+      });
       // Synchronized scroll enable/disable and selection lock for mood step
       socket.on("moodScroll:enable", () => io.emit("moodScroll:enable"));
       socket.on("moodScroll:disable", () => io.emit("moodScroll:disable"));
