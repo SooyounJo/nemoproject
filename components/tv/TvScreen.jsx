@@ -111,8 +111,8 @@ export default function TvScreen() {
         if (m && m[1] === m[2]) {
           path = `/genimg/${m[1]}-${m[3]}.png`;
         }
-        // allow only flat style under /genimg
-        if (!/^\/genimg\/[1-5]-\d+\.png$/.test(path)) return;
+        // allow /genimg/* and /weather/*.png
+        if (!/^\/genimg\/[1-5]-\d+\.png$/.test(path) && !/^\/weather\/[a-z0-9_-]+\.png$/i.test(path)) return;
         try { console.log("[tv] tvShow/imageSelected ->", path); } catch {}
         setFade(false);
         setUrl(path);
@@ -147,7 +147,7 @@ export default function TvScreen() {
     // Fallback: also accept imageSelected only if it points to /genimg/*
     try {
       s.on("imageSelected", (u) => {
-        if (typeof u !== "string" || !u.startsWith("/genimg/")) return;
+        if (typeof u !== "string" || (!u.startsWith("/genimg/") && !u.startsWith("/weather/"))) return;
         setFade(false);
         setUrl(u);
         setTint(null);

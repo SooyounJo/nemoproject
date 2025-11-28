@@ -49,9 +49,23 @@ export default function handler(req, res) {
     let activeMobileId = null;
     const maybeEmitTv = () => {
       if (selection.time && selection.mood && selection.weather) {
-        let url = buildUrlForSelection(selection.time, selection.mood, selection.weather);
-        url = normalizeGenimg(url);
-        if (!url) return;
+        // Build default genimg
+        let url = normalizeGenimg(buildUrlForSelection(selection.time, selection.mood, selection.weather));
+        let tintMood = selection.mood;
+        // Optional: map selected weather to a weather image with predefined mood/time tint
+        const WEATHER_TO_IMAGE = {
+          clear: { path: "/weather/sunny.png", mood: "green_pastel", time: "day" },
+          cloudy: { path: "/weather/rainbow.png", mood: "gold", time: "day" },
+          rainy: { path: "/weather/rain.png", mood: "light_blue", time: "day" },
+          snowy: { path: "/weather/snow.png", mood: "cold_white", time: "afternoon" },
+          foggy: { path: "/weather/smog.png", mood: "cold_white", time: "day" },
+          stormy: { path: "/weather/rain.png", mood: "light_blue", time: "day" },
+        };
+        const w = String(selection.weather || "");
+        if (WEATHER_TO_IMAGE[w]) {
+          url = WEATHER_TO_IMAGE[w].path; // allow /weather/*
+          tintMood = WEATHER_TO_IMAGE[w].mood || tintMood;
+        }
         try {
           io.of("/tv").emit("tvShow", url);
           io.of("/mobile").emit("finalImage", url);
@@ -69,7 +83,7 @@ export default function handler(req, res) {
             gold: "#ffcc66",
             purple_pink: "#be8ad6",
           };
-          const mood = selection.mood;
+          const mood = tintMood;
           const color = MOOD_TO_COLOR[mood] || null;
           if (color) io.of("/tv").emit("tvFilter", { mood, color, opacity: 0.10 });
         } catch {}
