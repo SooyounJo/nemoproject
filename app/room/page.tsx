@@ -276,7 +276,7 @@ export default function FixedRoomPage() {
     }
     try { console.log("[room] step ->", step); } catch {}
     if (step === 1) {
-      setBannerText("하루 중 어느 시간대에 휴식이 가장 필요하신가요? 모바일을 스크롤하여 05:00부터 23:00까지 시간을 맞춰보세요.");
+      setBannerText("하루 중 어느 시간대에 휴식이 가장 필요하신가요?\n모바일을 스크롤하여 05:00부터 23:00까지 시간을 맞춰보세요.");
       setBannerVisible(true); // keep visible throughout step 1
     } else if (step === 2) {
       setBannerText("창문 밖의 날씨를 골라주세요. 다음 단계로 넘어가면 선택된 날씨로 창밖 풍경이 이어집니다.");

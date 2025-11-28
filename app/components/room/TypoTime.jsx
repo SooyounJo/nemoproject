@@ -16,7 +16,7 @@ export default function TypoTime({ visible, highlightIndex = 0 }) {
       style={{
         position: "fixed",
         left: 22,
-        top: 80,
+        top: 120,
         zIndex: 8,
         pointerEvents: "none",
         display: "grid",
