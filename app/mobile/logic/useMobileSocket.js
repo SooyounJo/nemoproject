@@ -62,16 +62,6 @@ export default function useMobileSocket() {
 				window.dispatchEvent(new CustomEvent("bg-gradient:disable-scroll"));
 			} catch {}
 		};
-		// Fallback: if final is reached but server aggregation didn't emit, push a random valid genimg
-		const onFinal = () => {
-			try {
-				const n = Math.floor(Math.random() * 5) + 1;
-				const max = MAX_PER_SET[n] || 10;
-				const k = Math.floor(Math.random() * max) + 1;
-				const url = `/genimg/${n}-${k}.png`;
-				s.emit("tvShow", url);
-			} catch {}
-		};
 		s.on("moodScroll:enable", onEnable);
 		s.on("moodScroll:disable", onDisable);
 		s.on("moodSelect", onMoodSelect);
@@ -105,12 +95,12 @@ export default function useMobileSocket() {
 		// Also unlock locally when UI dispatches enable-scroll for later stages
 		const localEnable = () => { lockedRef.current = false; };
 		window.addEventListener("bg-gradient:enable-scroll", localEnable);
-		window.addEventListener("bg-gradient:final", onFinal);
+		// Do NOT emit any TV image on local final; TV should only show after server aggregation
 
 		return () => {
 			window.removeEventListener("bg-gradient:progress", onProgress);
 			window.removeEventListener("bg-gradient:enable-scroll", localEnable);
-			window.removeEventListener("bg-gradient:final", onFinal);
+			// no final listener to remove
 			s.off("moodScroll:enable", onEnable);
 			s.off("moodScroll:disable", onDisable);
 			s.off("moodSelect", onMoodSelect);
