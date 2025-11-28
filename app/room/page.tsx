@@ -12,6 +12,19 @@ import { ensureGlobalAudio } from "@/utils/globalAudio";
 
 export default function FixedRoomPage() {
   const router = useRouter();
+  // If this page is loaded via hard reload (F5), immediately go back to index
+  useEffect(() => {
+    try {
+      const nav = (performance && (performance.getEntriesByType?.("navigation") || [])) as any;
+      const isReload =
+        (Array.isArray(nav) && nav[0] && (nav[0] as any).type === "reload") ||
+        // legacy fallback
+        ((performance as any).navigation && (performance as any).navigation.type === (performance as any).navigation.TYPE_RELOAD);
+      if (isReload) {
+        window.location.replace("/");
+      }
+    } catch {}
+  }, []);
   // 페이지 스크롤 잠금
   useEffect(() => {
     const html = document.documentElement;
