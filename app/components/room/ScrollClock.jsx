@@ -33,8 +33,11 @@ export default function ScrollClock({ visible = true, progress = 0 }) {
         zIndex: 80,
         color: "#e5e7eb",
         fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          'Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif',
         fontSize: 52,
+        fontWeight: 300,
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
         letterSpacing: 0.5,
         pointerEvents: "none",
       }}
