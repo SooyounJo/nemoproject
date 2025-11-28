@@ -52,7 +52,27 @@ export default function handler(req, res) {
         let url = buildUrlForSelection(selection.time, selection.mood, selection.weather);
         url = normalizeGenimg(url);
         if (!url) return;
-        try { io.of("/tv").emit("tvShow", url); io.of("/mobile").emit("finalImage", url); } catch {}
+        try {
+          io.of("/tv").emit("tvShow", url);
+          io.of("/mobile").emit("finalImage", url);
+          // also hint TV to apply a very light mood-tinted overlay
+          const MOOD_TO_COLOR = {
+            warm_orange: "#ff8a3e",
+            deep_blue: "#1e2a5a",
+            light_blue: "#84c8ff",
+            blue_green: "#3fbfa4",
+            navy_purple: "#3b2a6e",
+            cold_white: "#cfd5de",
+            mixed_cool_warm: "#f2a36b",
+            dark_neutral: "#4a4f59",
+            green_pastel: "#9dd9c8",
+            gold: "#ffcc66",
+            purple_pink: "#be8ad6",
+          };
+          const mood = selection.mood;
+          const color = MOOD_TO_COLOR[mood] || null;
+          if (color) io.of("/tv").emit("tvFilter", { mood, color, opacity: 0.10 });
+        } catch {}
       }
     };
 

@@ -5,6 +5,7 @@ import ThreeBackground from "../../app/components/common/ThreeBackground";
 export default function TvScreen() {
   const [url, setUrl] = useState("");
   const [fade, setFade] = useState(false);
+  const [tint, setTint] = useState(null); // {color, opacity}
   const [audioReady, setAudioReady] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const mainAudioRef = useRef(null);
@@ -115,6 +116,8 @@ export default function TvScreen() {
         try { console.log("[tv] tvShow/imageSelected ->", path); } catch {}
         setFade(false);
         setUrl(path);
+        // reset tint unless a new one is provided after
+        setTint(null);
         // slower fade-in
         setTimeout(() => setFade(true), 80);
         // trigger dramatic fx music
@@ -129,6 +132,7 @@ export default function TvScreen() {
       s.on("tvClear", () => {
         setFade(false);
         setUrl("");
+        setTint(null);
         const main = mainAudioRef.current;
         if (fxAudioRef.current) {
           try { fxAudioRef.current.pause(); } catch {}
@@ -146,7 +150,15 @@ export default function TvScreen() {
         if (typeof u !== "string" || !u.startsWith("/genimg/")) return;
         setFade(false);
         setUrl(u);
+        setTint(null);
         setTimeout(() => setFade(true), 30);
+      });
+    } catch {}
+    try {
+      s.on("tvFilter", (payload) => {
+        const color = payload && typeof payload.color === "string" ? payload.color : null;
+        const opacity = Math.max(0, Math.min(1, Number(payload?.opacity ?? 0.1)));
+        if (color) setTint({ color, opacity });
       });
     } catch {}
     return () => {
@@ -224,6 +236,19 @@ export default function TvScreen() {
               animation: "tvWobble 6s ease-in-out infinite",
             }}
           />
+          {/* very light mood tint overlay (10%) */}
+          {tint && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: tint.color,
+                opacity: tint.opacity,
+                mixBlendMode: "soft-light",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           {/* lofi particles */}
           <div style={{
             position: "absolute",
