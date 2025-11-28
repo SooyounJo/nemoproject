@@ -51,8 +51,8 @@ export function ensureGlobalAudio() {
   if (!window[KEY_AUDIO]) {
     const audio = new Audio("/mmusic/main.mp3");
     audio.loop = true;
-    audio.volume = 0; // start silent
-    audio.muted = true; // attempt muted autoplay to satisfy policies
+    audio.volume = 0; // start silent, fade in
+    audio.muted = true; // allow autoplay on strict policies
     // Keep playing even if navigated
     audio.preload = "auto";
     window[KEY_AUDIO] = audio;
@@ -79,13 +79,14 @@ export function ensureGlobalAudio() {
   // 3. Ensure playing
   if (audio.paused) {
     audio.play().then(() => {
-      // unmute after playback starts (policy-compliant path)
-      audio.muted = false;
+      // unmute shortly after starting to satisfy autoplay policy
+      setTimeout(() => { try { audio.muted = false; } catch {} }, 300);
+      // fade in to 0.5 if started from silence
       if (audio.volume < 0.05) {
         rampVolumeGlobal(audio, 0.5, 2000);
       }
     }).catch(() => {
-      // silently wait for interaction; listeners are already registered
+      // silently wait for first interaction; listeners set above
     });
   } else {
     // If already playing but volume low (maybe from a fade out?), fade in

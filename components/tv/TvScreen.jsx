@@ -27,9 +27,11 @@ export default function TvScreen() {
       const a = new Audio("/mmusic/main.mp3");
       a.loop = true;
       a.volume = 0;
+      a.muted = true; // permit autoplay
       mainAudioRef.current = a;
       a.play().then(() => {
         setAudioReady(true);
+        try { a.muted = false; } catch {}
         rampVolume(a, 0.5, 1200);
       }).catch(() => {
         // Autoplay blocked: silently wait for first pointer to enable without visible UI
