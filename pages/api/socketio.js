@@ -49,10 +49,44 @@ export default function handler(req, res) {
     let activeMobileId = null;
     const maybeEmitTv = () => {
       if (selection.time && selection.mood && selection.weather) {
-        let url = buildUrlForSelection(selection.time, selection.mood, selection.weather);
-        url = normalizeGenimg(url);
-        if (!url) return;
-        try { io.of("/tv").emit("tvShow", url); io.of("/mobile").emit("finalImage", url); } catch {}
+        // Build default genimg
+        let url = normalizeGenimg(buildUrlForSelection(selection.time, selection.mood, selection.weather));
+        let tintMood = selection.mood;
+        // Optional: map selected weather to a weather image with predefined mood/time tint
+        const WEATHER_TO_IMAGE = {
+          clear: { path: "/weather/sunny.png", mood: "green_pastel", time: "day" },
+          cloudy: { path: "/weather/rainbow.png", mood: "gold", time: "day" },
+          rainy: { path: "/weather/rain.png", mood: "light_blue", time: "day" },
+          snowy: { path: "/weather/snow.png", mood: "cold_white", time: "afternoon" },
+          foggy: { path: "/weather/smog.png", mood: "cold_white", time: "day" },
+          stormy: { path: "/weather/rain.png", mood: "light_blue", time: "day" },
+        };
+        const w = String(selection.weather || "");
+        if (WEATHER_TO_IMAGE[w]) {
+          url = WEATHER_TO_IMAGE[w].path; // allow /weather/*
+          tintMood = WEATHER_TO_IMAGE[w].mood || tintMood;
+        }
+        try {
+          io.of("/tv").emit("tvShow", url);
+          io.of("/mobile").emit("finalImage", url);
+          // also hint TV to apply a very light mood-tinted overlay
+          const MOOD_TO_COLOR = {
+            warm_orange: "#ff8a3e",
+            deep_blue: "#1e2a5a",
+            light_blue: "#84c8ff",
+            blue_green: "#3fbfa4",
+            navy_purple: "#3b2a6e",
+            cold_white: "#cfd5de",
+            mixed_cool_warm: "#f2a36b",
+            dark_neutral: "#4a4f59",
+            green_pastel: "#9dd9c8",
+            gold: "#ffcc66",
+            purple_pink: "#be8ad6",
+          };
+          const mood = tintMood;
+          const color = MOOD_TO_COLOR[mood] || null;
+          if (color) io.of("/tv").emit("tvFilter", { mood, color, opacity: 0.10 });
+        } catch {}
       }
     };
 
@@ -136,6 +170,13 @@ export default function handler(req, res) {
           io.of("/tv").emit("tvClear");
         } catch {}
       });
+      // Force mobile clients to reload after a delay (ms)
+      socket.on("mobile:kick", (delayMs) => {
+        try {
+          const ms = Math.max(0, Math.min(120000, Number(delayMs || 20000)));
+          io.of("/mobile").emit("mobile:kick", ms);
+        } catch {}
+      });
       // Synchronized scroll enable/disable and selection lock for mood step
       socket.on("moodScroll:enable", () => io.emit("moodScroll:enable"));
       socket.on("moodScroll:disable", () => io.emit("moodScroll:disable"));
@@ -152,6 +193,10 @@ export default function handler(req, res) {
       });
       socket.on("genClear", () => {
         io.emit("genClear");
+      });
+      // Trigger mobile scroll nudge overlay
+      socket.on("mobile:nudge:scroll", () => {
+        try { io.of("/mobile").emit("mobile:nudge:scroll"); } catch {}
       });
       // bridge: selected image from desktop/room → tv & sbm (normalize path)
       socket.on("imageSelected", (url) => {

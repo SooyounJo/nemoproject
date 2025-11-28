@@ -9,6 +9,7 @@ import SelectButton from "../components/common/SelectButton";
 import SelectionFlashOverlay from "../components/common/SelectionFlashOverlay";
 import FinalScreen from "../components/FinalScreen";
 import useMobileSocket from "./logic/useMobileSocket";
+import ScrollNudge from "../components/common/ScrollNudge";
 
 export default function MobileScreen() {
 	useMobileSocket();
@@ -59,6 +60,7 @@ export default function MobileScreen() {
 			<ScrollInteraction />
 			<TopQuestion />
 			<SelectionFlashOverlay />
+			<ScrollNudge />
 			<FinalScreen />
 			{/* Color tuning UI removed for production */}
 		</main>

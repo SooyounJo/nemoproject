@@ -5,12 +5,26 @@ import { io } from "socket.io-client";
 import Room from "@/components/desktop/room/room";
 import TypoWeather from "@/app/components/room/TypoWeather";
 import TypoTime from "@/app/components/room/TypoTime";
+import ScrollClock from "@/app/components/room/ScrollClock";
 import { getTimeSlotFromProgress } from "@/lib/mood-select";
 import { useRouter } from "next/navigation";
 import { ensureGlobalAudio } from "@/utils/globalAudio";
 
 export default function FixedRoomPage() {
   const router = useRouter();
+  // If this page is loaded via hard reload (F5), immediately go back to index
+  useEffect(() => {
+    try {
+      const nav = (performance && (performance.getEntriesByType?.("navigation") || [])) as any;
+      const isReload =
+        (Array.isArray(nav) && nav[0] && (nav[0] as any).type === "reload") ||
+        // legacy fallback
+        ((performance as any).navigation && (performance as any).navigation.type === (performance as any).navigation.TYPE_RELOAD);
+      if (isReload) {
+        window.location.replace("/");
+      }
+    } catch {}
+  }, []);
   // 페이지 스크롤 잠금
   useEffect(() => {
     const html = document.documentElement;
@@ -178,6 +192,8 @@ export default function FixedRoomPage() {
   // Final step idle → broadcast reset and return to index after 10s
   useEffect(() => {
     if (step !== 3) return;
+    // Immediately schedule mobile kick (20s) so old device is forced out
+    try { socketRef.current?.emit("mobile:kick", 20000); } catch {}
     const id = setTimeout(() => {
       try {
         // notify all clients to reset and clear TV
@@ -271,19 +287,15 @@ export default function FixedRoomPage() {
       clearTimeout(bannerTimerRef.current);
       bannerTimerRef.current = null;
     }
-    // debug: step change
     try { console.log("[room] step ->", step); } catch {}
-    // step 1: first Next (time-of-day question)
     if (step === 1) {
-      setBannerText("하루 중 어떤 시간에 휴식이 필요하신가요?\n모바일을 스크롤하며 찾아보세요");
-      setBannerVisible(true);
-      bannerTimerRef.current = setTimeout(() => setBannerVisible(false), 3000);
-    }
-    // step 2: second Next
-    if (step === 2) {
-      setBannerText("창문 밖의 날씨가 어떨 것 같나요?");
-      setBannerVisible(true);
-      bannerTimerRef.current = setTimeout(() => setBannerVisible(false), 3000);
+      setBannerText("하루 중 어느 시간대에 휴식이 가장 필요하신가요?\n모바일을 스크롤하여 05:00부터 23:00까지 시간을 맞춰보세요.");
+      setBannerVisible(true); // keep visible throughout step 1
+    } else if (step === 2) {
+      setBannerText("창문 밖의 날씨를 골라주세요. 다음 단계로 넘어가면 선택된 날씨로 창밖 풍경이 이어집니다.");
+      setBannerVisible(true); // keep visible throughout step 2
+    } else {
+      setBannerVisible(false);
     }
     return () => {
       if (bannerTimerRef.current) {
@@ -374,6 +386,15 @@ export default function FixedRoomPage() {
         showHtmlSliders={false}
         staticView={true}
         screenGridImages={screenGridImages}
+      />
+      {/* Top-right HH:mm tied to mobile scroll (05:00..23:00) */}
+      <ScrollClock
+        visible={step === 1}
+        progress={
+          typeof remoteProgress === "number"
+            ? remoteProgress
+            : (typeof lightPath === "number" ? lightPath : 0)
+        }
       />
       {/* Left-fixed typo time slots (no modal) */}
       {step === 1 && (

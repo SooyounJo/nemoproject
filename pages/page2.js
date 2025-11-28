@@ -160,6 +160,8 @@ export default function Page2() {
       setArranged(false);
       setShowQuestion(true);
       startClarityAnim();
+      // Gentle mobile scroll nudge at the start of the windows stage
+      try { socketRef.current?.emit("mobile:nudge:scroll"); } catch {}
       // no camera
     }
   }, [clearTimers, startClarityAnim, startCamera, stopCamera, stopClarityAnim]);
@@ -770,8 +772,8 @@ export default function Page2() {
         raise
       >
         <div style={{ lineHeight: 1.45 }}>
-          <div>편안함이 느껴지는 무드를 찾아보세요</div>
-          <div style={{ marginTop: 8, fontSize: 14, opacity: 0.9 }}>모바일을 스크롤하여 찾아보세요</div>
+          <div>모바일을 스크롤하여 마음이 편안해지는 무드를 선택해주세요</div>
+          <div style={{ marginTop: 8, fontSize: 14, opacity: 0.9 }}>위·아래로 살짝 움직여 보세요</div>
         </div>
       </CenterPrompt>
       {/* Scroll arrange disabled (no 4-up transition) */}
